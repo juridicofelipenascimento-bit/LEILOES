@@ -1,0 +1,41 @@
+name: Atualizar dados de leilão
+
+# Roda todo dia às 06:00 no horário de Brasília (09:00 UTC).
+# Você também pode rodar na mão pela aba Actions do GitHub.
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+# Necessário para a Action conseguir gravar o data.json de volta no repositório.
+permissions:
+  contents: write
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rodar o coletor
+        run: node scripts/coletar.mjs
+
+      - name: Gravar alterações
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          # "diff --staged --quiet" sai com 0 quando NÃO há mudança:
+          # nesse caso não commitamos, para não poluir o histórico.
+          if git diff --staged --quiet; then
+            echo "Nada mudou hoje."
+          else
+            git commit -m "dados: atualização automática $(date -u +%Y-%m-%d)"
+            git push
+          fi
