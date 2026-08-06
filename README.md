@@ -43,19 +43,59 @@ arquivo de dados que uma rotina diária mantém atualizado.
 
 ## Passo 2 — Subir os arquivos
 
-1. No repositório novo, clique em **uploading an existing file**
-   (ou **Add file → Upload files**).
-2. Arraste **todo o conteúdo** da pasta `leiloes-imoveis`, incluindo as pastas
-   `.github`, `scripts` e `fontes`.
-3. Escreva "primeira versão" em baixo e clique em **Commit changes**.
+> ⚠️ **O navegador esconde pastas que começam com ponto.** As pastas `.github`,
+> e os arquivos `.nojekyll` e `.gitignore` **não sobem** por arrastar-e-soltar.
+> Foi por isso que a implantação falhou. Use um dos dois caminhos abaixo.
 
-> Se o navegador não deixar arrastar pastas, instale o
-> [GitHub Desktop](https://desktop.github.com) — ele sobe a pasta inteira.
+### Caminho A — GitHub Desktop (recomendado, resolve tudo)
+
+1. Instale o [GitHub Desktop](https://desktop.github.com) e entre com sua conta.
+2. **File → Clone repository** → escolha o repositório que você criou → **Clone**.
+3. Abra a pasta clonada e **copie para dentro dela todo o conteúdo** de
+   `leiloes-imoveis` (no Windows, ative *Exibir → Itens ocultos* no Explorador
+   para enxergar `.github`, `.nojekyll` e `.gitignore`).
+4. Volte ao GitHub Desktop: escreva "primeira versão" e clique em
+   **Commit to main** → **Push origin**.
+
+### Caminho B — Só pelo site (se não quiser instalar nada)
+
+1. **Add file → Upload files** e arraste apenas os arquivos e pastas *sem*
+   ponto no nome: `plataforma.html`, `index.html`, `data.json`, `README.md`,
+   `scripts/`, `fontes/`. **Commit changes**.
+2. Agora crie os que faltam, um por um, digitando o **caminho completo** —
+   ao digitar `/` o GitHub cria a pasta sozinho:
+
+   **Add file → Create new file**, nome exato:
+   ```
+   .nojekyll
+   ```
+   Deixe o conteúdo vazio. **Commit changes**.
+
+3. **Add file → Create new file**, nome exato:
+   ```
+   .github/workflows/atualizar-dados.yml
+   ```
+   Cole dentro o conteúdo do arquivo `.github/workflows/atualizar-dados.yml`
+   desta pasta (abra com o Bloco de Notas). **Commit changes**.
+
+4. Confira: na página inicial do repositório devem aparecer as pastas
+   `.github`, `fontes`, `scripts` e os arquivos `.nojekyll`, `data.json`,
+   `index.html`, `plataforma.html`.
+
+> **Por que `.nojekyll` é obrigatório:** o GitHub Pages processa o site com
+> Jekyll por padrão, e o Jekyll descarta pastas iniciadas por `_` e pode falhar
+> o build. Esse arquivo vazio desliga o Jekyll e publica os arquivos como estão.
 
 ## Passo 3 — Ligar o GitHub Pages
 
 1. No repositório: **Settings** (engrenagem no topo) → **Pages** (menu esquerdo).
 2. Em **Source**, escolha **Deploy from a branch**.
+
+   > ⚠️ **Não escolha "GitHub Actions" aqui.** É o padrão que o GitHub sugere e
+   > é a segunda causa mais comum de falha na implantação: essa opção espera um
+   > workflow de publicação que este projeto não usa, e o deploy quebra. Se você
+   > já selecionou, troque para **Deploy from a branch** agora.
+
 3. Em **Branch**, escolha `main` e a pasta `/ (root)`. Clique em **Save**.
 4. Espere 1 a 2 minutos e recarregue a página. Vai aparecer o endereço:
 
@@ -193,15 +233,60 @@ contrário: apagar um campo limpa mesmo.)
 
 ```
 leiloes-imoveis/
-├── plataforma.html                      a plataforma inteira
-├── index.html                           encaminha para ela (GitHub Pages)
-├── data.json                            feed, mantido pela rotina diária
-├── fontes/                              ← suba aqui seus CSV/JSON
+├── plataforma.html                       a plataforma inteira
+├── index.html                            encaminha para ela (GitHub Pages)
+├── data.json                             feed, mantido pela rotina diária
+├── .nojekyll                             OBRIGATÓRIO no GitHub (desliga o Jekyll)
+├── .gitignore
+├── fontes/                               ← suba aqui seus CSV/JSON
 │   └── LEIA-ME.md
-├── scripts/coletar.mjs                  o coletor
+├── scripts/coletar.mjs                   o coletor
 ├── .github/workflows/atualizar-dados.yml a rotina diária
-└── _versao-servidor-legada/             protótipo antigo; pode apagar
+└── arquivo-versao-antiga/                protótipo antigo; pode apagar
 ```
+
+> A pasta antiga chamava-se `_versao-servidor-legada`. Renomeei porque o
+> Jekyll, do GitHub Pages, trata pastas iniciadas por `_` como diretórios
+> internos dele — o que atrapalha a publicação.
+
+---
+
+# Se der erro na implantação
+
+Vá em **Actions** no repositório e clique na execução com ❌ para ver o log.
+Os três erros comuns, em ordem de frequência:
+
+### "Page build failed" / o site não abre
+
+Quase sempre é o **`.nojekyll` faltando**. Confirme que ele existe na raiz do
+repositório — é um arquivo **vazio**, e o navegador **não** o envia por
+arrastar-e-soltar. Crie pelo site: **Add file → Create new file**, nome
+`.nojekyll`, conteúdo vazio, **Commit changes**.
+
+Segunda causa: **Source** configurado como *GitHub Actions* em vez de
+*Deploy from a branch*. Corrija em **Settings → Pages** (Passo 3).
+
+### A aba Actions está vazia, ou o workflow não aparece
+
+A pasta `.github` não subiu — o navegador esconde pastas com ponto. Refaça o
+**Caminho B do Passo 2**, item 3, criando o arquivo pelo caminho completo.
+
+### O workflow roda mas falha em "Gravar alterações"
+
+Faltou o **Passo 4**: **Settings → Actions → General → Workflow permissions →
+Read and write permissions → Save**. A mensagem no log costuma ser
+`Permission to ... denied` ou `403`.
+
+### O site abre mas não carrega dados
+
+Normal se o `data.json` estiver vazio (`[]`) — é como ele nasce. Suba um
+arquivo em `fontes/` e rode o workflow (Passos 5 e 6). A aba **Backup e dados**
+mostra o status da leitura do feed.
+
+> **Sobre a execução diária:** o GitHub só roda agendamento no branch padrão, e
+> **desativa agendamentos após 60 dias sem atividade** no repositório. Se o feed
+> parar de atualizar sozinho depois de um tempo, entre em Actions e clique em
+> **Enable workflow**.
 
 ---
 
