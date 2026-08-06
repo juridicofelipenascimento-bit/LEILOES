@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Leilões Imobiliários</title>
+<style>
+:root {
+  --bg: #f4f6f8;
+  --superficie: #ffffff;
+  --superficie-2: #eef1f4;
+  --texto: #1b1f26;
+  --texto-suave: #5d6572;
+  --borda: #dfe3e8;
+  --marca: #3bb3ae;
+  --marca-escura: #2b8b87;
+  --primaria: #2f6fed;
+  --sucesso: #1f9d55;
+  --alerta: #d64545;
+  --alerta-bg: #fdecec;
+  --aviso: #b8860b;
+  --sombra: 0 1px 3px rgba(0,0,0,.07), 0 6px 18px rgba(0,0,0,.05);
+  --raio: 10px;
+}
+:root[data-tema="dark"] {
+  --bg: #121418;
+  --superficie: #1c1f25;
+  --superficie-2: #23272f;
+  --texto: #eaecf0;
+  --texto-suave: #98a0ae;
+  --borda: #2c313a;
+  --marca: #4ecdc7;
+  --marca-escura: #3bb3ae;
+  --primaria: #5b8cff;
+  --sucesso: #35c273;
+  --alerta: #ff6b6b;
+  --alerta-bg: #3a1f22;
+  --aviso: #e0ac3f;
+  --sombra: 0 1px 3px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--texto);
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+}
+
+/* ---------- topo ---------- */
+.topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 20px; background: var(--superficie);
+  border-bottom: 1px solid var(--borda); position: sticky; top: 0; z-index: 20;
+}
+.marca { display: flex; align-items: center; gap: 12px; }
+.marca svg { width: 34px; height: 34px; flex: none; }
+.marca-txt strong { display: block; font-size: 15px; line-height: 1.2; }
+.marca-txt span { font-size: 11.5px; color: var(--texto-suave); }
+.topo-acoes { display: flex; align-items: center; gap: 8px; }
+
+/* ---------- abas ---------- */
+.abas {
+  display: flex; gap: 2px; padding: 0 20px; background: var(--superficie);
+  border-bottom: 1px solid var(--borda); overflow-x: auto;
+}
+.aba {
+  background: none; border: none; padding: 11px 16px; font-size: 13.5px;
+  color: var(--texto-suave); cursor: pointer; border-bottom: 2px solid transparent;
+  white-space: nowrap; font-family: inherit;
+}
+.aba.ativa { color: var(--marca); border-bottom-color: var(--marca); font-weight: 600; }
+main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
+.painel { display: none; }
+.painel.ativo { display: block; }
+
+/* ---------- KPIs ---------- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
+  padding: 13px 15px; box-shadow: var(--sombra);
+}
+.kpi .v { font-size: 22px; font-weight: 700; line-height: 1.15; }
+.kpi .r { font-size: 11.5px; color: var(--texto-suave); margin-top: 3px; }
+.kpi.destaque .v { color: var(--alerta); }
+.kpi.marca-cor .v { color: var(--marca); }
+
+/* ---------- filtros ---------- */
+.barra {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
+  padding: 13px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 11px;
+  box-shadow: var(--sombra);
+}
+.busca-linha { display: flex; gap: 8px; }
+#busca { flex: 1; }
+input, select, textarea, button { font-family: inherit; font-size: 13px; }
+input, select, textarea {
+  padding: 8px 11px; border: 1px solid var(--borda); border-radius: 7px;
+  background: var(--bg); color: var(--texto); width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--marca); outline-offset: -1px; }
+.filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.acoes-barra { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  padding: 8px 14px; border: 1px solid var(--borda); border-radius: 7px;
+  background: var(--superficie); color: var(--texto); cursor: pointer; font-weight: 500;
+  white-space: nowrap; width: auto;
+}
+.btn:hover { border-color: var(--marca); color: var(--marca); }
+.btn-p { background: var(--marca); border-color: var(--marca); color: #04211f; font-weight: 600; }
+.btn-p:hover { background: var(--marca-escura); border-color: var(--marca-escura); color: #fff; }
+.btn-perigo { color: var(--alerta); border-color: var(--alerta); }
+.btn-perigo:hover { background: var(--alerta); color: #fff; }
+.btn-ico { padding: 7px 10px; font-size: 15px; line-height: 1; }
+
+/* ---------- tabela ---------- */
+.tabela-wrap {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
+  overflow-x: auto; box-shadow: var(--sombra);
+}
+table { width: 100%; border-collapse: collapse; min-width: 1050px; }
+th, td { padding: 9px 11px; text-align: left; border-bottom: 1px solid var(--borda); vertical-align: top; }
+th {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--texto-suave); cursor: pointer; user-select: none; white-space: nowrap;
+  background: var(--superficie-2); position: sticky; top: 0;
+}
+th:hover { color: var(--marca); }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: color-mix(in srgb, var(--marca) 7%, transparent); }
+tr.nao-lida { background: color-mix(in srgb, var(--marca) 5%, transparent); }
+tr.nao-lida td:nth-child(2) { font-weight: 700; }
+tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
+.ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--marca); display: inline-block; }
+.col-ponto { width: 26px; text-align: center; }
+.end-p { font-weight: 600; }
+.end-s { font-size: 11.5px; color: var(--texto-suave); margin-top: 2px; }
+.mapa { font-size: 11.5px; color: var(--primaria); text-decoration: none; }
+.mapa:hover { text-decoration: underline; }
+.tag {
+  display: inline-block; padding: 2.5px 9px; border-radius: 99px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.st-agendado    { background: color-mix(in srgb, var(--primaria) 17%, transparent); color: var(--primaria); }
+.st-arrematado  { background: color-mix(in srgb, var(--sucesso) 17%, transparent); color: var(--sucesso); }
+.st-finalizado  { background: color-mix(in srgb, var(--texto-suave) 20%, transparent); color: var(--texto-suave); }
+.st-pendente    { background: color-mix(in srgb, var(--aviso) 20%, transparent); color: var(--aviso); }
+.st-suspenso    { background: color-mix(in srgb, var(--alerta) 17%, transparent); color: var(--alerta); }
+.et { background: var(--superficie-2); color: var(--texto-suave); border: 1px solid var(--borda); }
+.oc-ocupado       { background: color-mix(in srgb, var(--aviso) 20%, transparent); color: var(--aviso); }
+.oc-desocupado    { background: color-mix(in srgb, var(--sucesso) 17%, transparent); color: var(--sucesso); }
+.oc-litigio       { background: color-mix(in srgb, var(--alerta) 17%, transparent); color: var(--alerta); }
+.oc-nao_informado { background: var(--superficie-2); color: var(--texto-suave); }
+.link-perfil { color: var(--marca); text-decoration: none; font-weight: 500; }
+.link-perfil:hover { text-decoration: underline; }
+.link-imovel { color: var(--primaria); text-decoration: none; }
+.link-imovel:hover { text-decoration: underline; }
+.desagio { font-size: 11.5px; color: var(--sucesso); font-weight: 600; }
+.dias-al { display: block; font-size: 11px; color: var(--alerta); font-weight: 700; margin-top: 2px; }
+.vazio { padding: 40px; text-align: center; color: var(--texto-suave); }
+
+/* ---------- timeline ---------- */
+.tl { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.tl-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: var(--superficie); border: 1px solid var(--borda); border-left: 4px solid var(--marca);
+  border-radius: var(--raio); padding: 12px 15px; flex-wrap: wrap; cursor: pointer;
+}
+.tl-item:hover { border-color: var(--marca); border-left-color: var(--marca); }
+.tl-item.urg { border-left-color: var(--alerta); background: var(--alerta-bg); }
+.tl-info strong { display: block; }
+.tl-info span { font-size: 12px; color: var(--texto-suave); }
+.tl-badge { font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 99px;
+  background: color-mix(in srgb, var(--marca) 18%, transparent); color: var(--marca-escura); white-space: nowrap; }
+:root[data-tema="dark"] .tl-badge { color: var(--marca); }
+.tl-item.urg .tl-badge { background: color-mix(in srgb, var(--alerta) 20%, transparent); color: var(--alerta); }
+
+/* ---------- caixas ---------- */
+.caixa {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
+  padding: 20px; box-shadow: var(--sombra); max-width: 720px; margin-bottom: 16px;
+}
+.caixa h3 { margin: 0 0 6px; font-size: 15px; }
+.caixa p { color: var(--texto-suave); font-size: 13px; line-height: 1.55; margin: 0 0 12px; }
+code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; font-size: 12px; }
+.aviso-box {
+  border-left: 3px solid var(--aviso); background: color-mix(in srgb, var(--aviso) 8%, transparent);
+  padding: 12px 15px; border-radius: 0 7px 7px 0; font-size: 12.5px;
+  line-height: 1.6; color: var(--texto-suave); margin-bottom: 16px;
+}
+.aviso-box strong { color: var(--texto); }
+.resultado { margin-top: 13px; padding: 12px 15px; border-radius: 7px; background: var(--superficie-2); font-size: 13px; line-height: 1.6; }
+.resultado.erro { border-left: 3px solid var(--alerta); }
+
+/* ---------- modal ---------- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.modal {
+  background: var(--superficie); border-radius: 12px; padding: 22px;
+  width: 100%; max-width: 720px; max-height: 92vh; overflow-y: auto; box-shadow: var(--sombra);
+}
+.modal h2 { margin: 0 0 4px; font-size: 17px; }
+.modal .sub { color: var(--texto-suave); font-size: 12.5px; margin-bottom: 16px; }
+.grade { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.grade label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--texto-suave); font-weight: 500; }
+.grade label.full { grid-column: 1 / -1; }
+.modal-rodape { display: flex; gap: 8px; margin-top: 18px; align-items: center; }
+.esp { flex: 1; }
+.hist { margin-top: 16px; border-top: 1px solid var(--borda); padding-top: 12px; }
+.hist h4 { margin: 0 0 8px; font-size: 12px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .4px; }
+.hist ul { margin: 0; padding-left: 16px; font-size: 12px; color: var(--texto-suave); line-height: 1.7; }
+
+.toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--texto); color: var(--bg); padding: 10px 20px; border-radius: 99px;
+  font-size: 13px; font-weight: 500; z-index: 200; box-shadow: var(--sombra);
+}
+.toast.erro { background: var(--alerta); color: #fff; }
+
+@media (max-width: 760px) {
+  main { padding: 14px 12px 50px; }
+  .topo, .abas { padding-left: 12px; padding-right: 12px; }
+  .marca-txt span { display: none; }
+  .grade { grid-template-columns: 1fr; }
+  .filtros { grid-template-columns: 1fr 1fr; }
+}
+@media print {
+  .topo, .abas, .barra, .kpis, .modal-rodape, .overlay, .toast { display: none !important; }
+  body { background: #fff; }
+  .tabela-wrap { border: none; box-shadow: none; }
+  table { min-width: 0; font-size: 10px; }
+  th { background: #eee; color: #000; }
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <svg viewBox="0 0 200 200" aria-label="Logo" id="logo-svg">
+      <path d="M100 40 A60 60 0 0 1 100 160 L100 133 A33 33 0 0 0 100 67 Z" fill="var(--marca)"/>
+      <path d="M56 68 A32 32 0 0 1 56 132 L56 116 A16 16 0 0 0 56 84 Z" fill="var(--marca)"/>
+    </svg>
+    <div class="marca-txt">
+      <strong>Monitor de Leilões Imobiliários</strong>
+      <span id="resumo-topo"></span>
+    </div>
+  </div>
+  <div class="topo-acoes">
+    <button class="btn btn-ico" id="btn-tema" title="Alternar tema">🌙</button>
+    <button class="btn btn-p" id="btn-novo">+ Novo imóvel</button>
+  </div>
+</header>
+
+<nav class="abas">
+  <button class="aba ativa" data-p="painel">Painel</button>
+  <button class="aba" data-p="timeline">Timeline</button>
+  <button class="aba" data-p="arrematadores">Arrematadores</button>
+  <button class="aba" data-p="importar">Importar</button>
+  <button class="aba" data-p="backup">Backup e dados</button>
+</nav>
+
+<main>
+
+<!-- ================= PAINEL ================= -->
+<section id="p-painel" class="painel ativo">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="barra">
+    <div class="busca-linha">
+      <input type="search" id="busca" placeholder="Buscar por endereço, bairro, município, matrícula, processo, arrematador... (atalho: /)">
+      <button class="btn" id="btn-limpar">Limpar</button>
+    </div>
+    <div class="filtros">
+      <select id="f-leitura">
+        <option value="">Lidas e não lidas</option>
+        <option value="nao">Somente não lidas</option>
+        <option value="sim">Somente lidas</option>
+      </select>
+      <select id="f-status">
+        <option value="">Todos os status</option>
+      </select>
+      <select id="f-etapa">
+        <option value="">Todas as etapas</option>
+      </select>
+      <select id="f-periodo">
+        <option value="">Qualquer data</option>
+        <option value="p7">Próximos 7 dias</option>
+        <option value="p30">Próximos 30 dias</option>
+        <option value="p60">Próximos 60 dias</option>
+        <option value="u30">Últimos 30 dias</option>
+        <option value="u90">Últimos 90 dias</option>
+      </select>
+      <select id="f-ocupacao"><option value="">Ocupação: todas</option></select>
+      <select id="f-uf"><option value="">Todas as UFs</option></select>
+      <select id="f-fonte"><option value="">Todas as fontes</option></select>
+      <input type="number" id="f-vmin" placeholder="Valor mín. R$">
+      <input type="number" id="f-vmax" placeholder="Valor máx. R$">
+    </div>
+    <div class="acoes-barra">
+      <button class="btn" id="btn-marcar-lidas">Marcar visíveis como lidas</button>
+      <button class="btn" id="btn-csv">Exportar CSV</button>
+      <button class="btn" id="btn-pdf">Exportar PDF / Imprimir</button>
+    </div>
+  </div>
+
+  <div class="tabela-wrap">
+    <table>
+      <thead><tr>
+        <th class="col-ponto"></th>
+        <th data-ord="endereco">Imóvel</th>
+        <th data-ord="dataLeilao">Data do leilão</th>
+        <th data-ord="status">Status</th>
+        <th data-ord="etapa">Etapa</th>
+        <th data-ord="valorAvaliacao">Avaliação</th>
+        <th data-ord="valorLance">Arrematação</th>
+        <th data-ord="ocupacao">Ocupação</th>
+        <th data-ord="arrematador">Arrematador</th>
+        <th data-ord="fonte">Fonte</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="vazio" id="vazio" hidden>Nenhum imóvel encontrado com os filtros atuais.</p>
+  </div>
+</section>
+
+<!-- ================= TIMELINE ================= -->
+<section id="p-timeline" class="painel">
+  <div class="caixa" style="max-width:none">
+    <h3>Próximos leilões</h3>
+    <p>Ordenados por proximidade. Em vermelho, os que ocorrem em menos de 7 dias. Clique para abrir o registro.</p>
+  </div>
+  <div class="tl" id="tl"></div>
+</section>
+
+<!-- ================= ARREMATADORES ================= -->
+<section id="p-arrematadores" class="painel">
+  <div class="caixa" style="max-width:none">
+    <h3>Arrematadores</h3>
+    <p>
+      Cadastro criado sozinho a partir dos imóveis registrados — quem aparece como
+      arrematador ganha uma ficha. Ordenado por número de imóveis, o que revela
+      quem compra com recorrência. Clique para abrir, editar e ver o histórico.
+    </p>
+    <p>
+      Campos de contato são de preenchimento manual. Para pessoa jurídica, os dados
+      cadastrais são públicos na Receita Federal; para pessoa física, preencha apenas
+      o que você apurou licitamente e registre a origem no próprio cadastro.
+    </p>
+  </div>
+  <div class="tl" id="lista-perfis"></div>
+</section>
+
+<!-- ================= IMPORTAR ================= -->
+<section id="p-importar" class="painel">
+  <div class="aviso-box">
+    <strong>Sobre o que entra aqui.</strong> Esta plataforma trabalha com dados do <em>imóvel e do leilão</em> —
+    endereço, matrícula, processo, edital, datas, avaliação e lance — que constam de atos públicos.
+    A responsabilidade pela origem, licitude e finalidade dos dados que você importar é sua, inclusive
+    quanto à LGPD e ao Código de Ética da OAB. Registros importados entram como <strong>NÃO LIDOS</strong>.
+  </div>
+
+  <div class="caixa">
+    <h3>Importar em lote (CSV ou JSON)</h3>
+    <p>
+      Colunas reconhecidas:
+      <code>endereco</code> <code>bairro</code> <code>municipio</code> <code>estado</code>
+      <code>matricula</code> <code>processo</code> <code>edital</code>
+      <code>valorAvaliacao</code> <code>valorLance</code> <code>dataLeilao</code>
+      <code>status</code> <code>arrematador</code> <code>fonte</code> <code>link</code> <code>notas</code>
+      <br><br>
+      <code>status</code>: agendado · arrematado · finalizado · pendente · suspenso.
+      <code>dataLeilao</code> no formato AAAA-MM-DD.
+      Registros com a mesma <code>matricula</code> ou <code>processo</code> de um já existente são
+      <strong>atualizados</strong> em vez de duplicados.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <input type="file" id="arquivo" accept=".csv,.json">
+      <button class="btn btn-p" id="btn-importar" disabled>Importar arquivo</button>
+      <button class="btn" id="btn-modelo">Baixar modelo CSV</button>
+    </div>
+    <div class="resultado" id="res-import" hidden></div>
+  </div>
+</section>
+
+<!-- ================= BACKUP ================= -->
+<section id="p-backup" class="painel">
+  <div class="aviso-box" id="aviso-storage" hidden>
+    <strong>Atenção:</strong> o navegador bloqueou o armazenamento local nesta página.
+    Os dados existem apenas enquanto a aba estiver aberta. Faça o backup antes de fechar,
+    ou abra a plataforma pelo servidor local (<code>npm start</code>).
+  </div>
+
+  <div class="resultado" id="feed-status" hidden></div>
+
+  <div class="caixa">
+    <h3>Backup completo</h3>
+    <p>
+      Os dados ficam salvos no armazenamento local deste navegador, neste computador.
+      Limpar o histórico do navegador apaga tudo. <strong>Exporte um backup com frequência</strong> —
+      é o seu único arquivo recuperável.
+    </p>
+    <div class="acoes-barra">
+      <button class="btn btn-p" id="btn-backup">Exportar backup (JSON)</button>
+      <button class="btn" id="btn-restaurar-lbl">Restaurar backup</button>
+      <input type="file" id="restaurar" accept=".json" hidden>
+    </div>
+    <div class="resultado" id="res-backup" hidden></div>
+  </div>
+
+  <div class="caixa">
+    <h3>Dados de demonstração</h3>
+    <p>Carrega alguns registros de exemplo para você testar filtros, etapas e timeline. Não sobrescreve o que já existe.</p>
+    <button class="btn" id="btn-demo">Carregar exemplos</button>
+  </div>
+
+  <div class="caixa">
+    <h3>Apagar tudo</h3>
+    <p>Remove todos os registros deste navegador. Não há como desfazer — exporte um backup antes.</p>
+    <button class="btn btn-perigo" id="btn-apagar">Apagar todos os registros</button>
+  </div>
+</section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ==================== constantes ==================== */
+const CHAVE = 'leiloes_v2';
+const CHAVE_PERFIS = 'leiloes_perfis_v1';
+const CHAVE_TEMA = 'leiloes_tema';
+
+const STATUS = {
+  agendado:   'Agendado',
+  arrematado: 'Arrematado',
+  finalizado: 'Finalizado',
+  pendente:   'Pendente',
+  suspenso:   'Suspenso',
+};
+const ETAPAS = {
+  novo:               'Novo',
+  qualificacao:       'Qualificação',
+  em_contato:         'Em contato',
+  reuniao_marcada:    'Reunião marcada',
+  reuniao_realizada:  'Reunião realizada',
+  follow_up:          'Follow up',
+  encerrado:          'Encerrado',
+};
+// Ocupação é fato do imóvel e consta do próprio edital de leilão — é
+// informação obrigatória porque afeta o lance. Não depende de identificar
+// quem mora lá.
+const OCUPACAO = {
+  nao_informado: 'Não informado',
+  ocupado:       'Ocupado',
+  desocupado:    'Desocupado',
+  litigio:       'Em disputa possessória',
+};
+// Vínculo do ocupante com o imóvel. Determina o rito aplicável e, quando é
+// "executado", o nome já consta dos autos — não há o que descobrir.
+const VINCULO = {
+  nao_identificado: 'Não identificado',
+  executado:        'Executado (parte no processo)',
+  locatario:        'Locatário',
+  comodatario:      'Comodatário',
+  terceiro:         'Terceiro ocupante',
+  antigo_prop:      'Antigo proprietário',
+};
+const COLUNAS = ['id','endereco','bairro','municipio','estado','matricula','processo','edital',
+  'valorAvaliacao','valorLance','dataLeilao','status','etapa','ocupacao','arrematador','fonte','link','notas','lida'];
+
+/* ==================== estado ==================== */
+let dados = [];
+let perfis = [];          // cadastro de arrematadores
+let visiveis = [];
+let ordCampo = 'dataLeilao';
+let ordDir = 'asc';
+let editando = null;
+let perfilAberto = null;
+let storageOk = true;
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+/* ==================== util ==================== */
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Busca e deduplicação precisam ignorar acento: quem digita "sao paulo" ou
+// "goiania" tem de achar "São Paulo" e "Goiânia".
+const RE_ACENTOS = new RegExp('[\\u0300-\\u036f]', 'g');
+const semAcento = (s) => String(s ?? '').normalize('NFD').replace(RE_ACENTOS, '').toLowerCase();
+
+// Índice de busca por registro, invalidado sozinho quando o registro muda.
+const cacheBusca = new Map();
+function textoBusca(r) {
+  const chave = r.id + '|' + r.atualizadoEm;
+  let v = cacheBusca.get(chave);
+  if (v === undefined) {
+    v = semAcento([r.endereco, r.bairro, r.municipio, r.estado, r.matricula,
+                   r.processo, r.edital, r.arrematador, r.fonte, r.notas].join(' '));
+    if (cacheBusca.size > 5000) cacheBusca.clear();
+    cacheBusca.set(chave, v);
+  }
+  return v;
+}
+
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+function moeda(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = Number(v);
+  return Number.isNaN(n) ? '—' : n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+}
+function dataBr(iso) {
+  if (!iso) return '—';
+  const p = String(iso).split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso;
+}
+function diasAte(iso) {
+  if (!iso) return null;
+  const alvo = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(alvo.getTime())) return null;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  return Math.round((alvo - hoje) / 86400000);
+}
+function uid() {
+  return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function toast(msg, erro) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.className = 'toast' + (erro ? ' erro' : '');
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 3000);
+}
+
+/* ==================== persistência ==================== */
+function salvar() {
+  if (!storageOk) return;
+  try {
+    localStorage.setItem(CHAVE, JSON.stringify(dados));
+    localStorage.setItem(CHAVE_PERFIS, JSON.stringify(perfis));
+  } catch (e) {
+    storageOk = false;
+    $('#aviso-storage').hidden = false;
+    toast('Falha ao salvar no navegador. Exporte um backup.', true);
+  }
+}
+function carregar() {
+  try {
+    const teste = '__t';
+    localStorage.setItem(teste, '1');
+    localStorage.removeItem(teste);
+    dados = JSON.parse(localStorage.getItem(CHAVE) || '[]');
+    perfis = JSON.parse(localStorage.getItem(CHAVE_PERFIS) || '[]');
+  } catch (e) {
+    storageOk = false;
+    $('#aviso-storage').hidden = false;
+    dados = [];
+    perfis = [];
+  }
+  if (!Array.isArray(dados)) dados = [];
+  if (!Array.isArray(perfis)) perfis = [];
+  // arrow explícito: map passaria índice e array como 2º e 3º argumentos
+  dados = dados.map((r) => normalizar(r));
+  sincronizarPerfis();
+}
+
+/* ==================== perfis de arrematador ==================== */
+// PJ tem dado cadastral genuinamente público (Receita Federal). PF não —
+// por isso os campos de contato aqui são de preenchimento manual, para quem
+// já se relacionou com você, e cada um pede a origem da informação.
+const RE_PJ = /\b(ltda|s\.?\/?a\.?|eireli|me|epp|mei|sociedade|empreendimentos?|incorporadora|construtora|participa|holding|fundo|securitizadora|imobili)\b/i;
+
+function chavePerfil(nome) {
+  return semAcento(nome).replace(/[^a-z0-9]/g, '');
+}
+
+function acharPerfil(nome) {
+  const k = chavePerfil(nome);
+  return k ? perfis.find(p => chavePerfil(p.nome) === k) : null;
+}
+
+// Cria automaticamente o cadastro para todo arrematador que aparecer nos
+// imóveis — o cadastro nasce dos dados que já estão no sistema, nunca de
+// identificador inventado.
+function sincronizarPerfis() {
+  let criados = 0;
+  dados.forEach(r => {
+    const nome = (r.arrematador || '').trim();
+    if (!nome || acharPerfil(nome)) return;
+    perfis.push({
+      id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      nome,
+      tipo: RE_PJ.test(nome) ? 'pj' : 'indefinido',
+      documento: '', email: '', telefone: '', site: '',
+      origemDados: '', notas: '',
+      criadoEm: new Date().toISOString(),
+    });
+    criados++;
+  });
+  return criados;
+}
+
+function imoveisDoPerfil(p) {
+  const k = chavePerfil(p.nome);
+  return dados.filter(r => chavePerfil(r.arrematador || '') === k);
+}
+
+function estatisticasPerfil(p) {
+  const lista = imoveisDoPerfil(p);
+  const comAmbos = lista.filter(r => r.valorAvaliacao && r.valorLance);
+  const total = lista.reduce((s, r) => s + (r.valorLance || 0), 0);
+  const desagio = comAmbos.length
+    ? (comAmbos.reduce((s, r) => s + (1 - r.valorLance / r.valorAvaliacao), 0) / comAmbos.length * 100)
+    : null;
+  const ufs = [...new Set(lista.map(r => r.estado).filter(Boolean))].sort();
+  return { qtd: lista.length, total, desagio, ufs, lista };
+}
+
+// preservarVazios: usado na importação em lote. Um campo que chega vazio
+// significa "a planilha não informa isso", não "apague o que está lá" — sem
+// isso, reimportar uma listagem apagaria anotações e etapas já preenchidas.
+// Na edição manual o padrão é o oposto: campo vazio limpa mesmo.
+function normalizar(r, anterior, preservarVazios) {
+  const base = anterior || {};
+  const vazio = (v) => v === undefined || v === null || String(v).trim() === '';
+  const num = (v, fb) => {
+    if (vazio(v)) return preservarVazios ? (fb ?? null) : (v === undefined ? (fb ?? null) : null);
+    const n = Number(String(v).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.'));
+    return Number.isNaN(n) ? null : n;
+  };
+  const txt = (v, fb) => {
+    if (vazio(v)) return preservarVazios ? String(fb ?? '').trim() : String(v ?? fb ?? '').trim();
+    return String(v).trim();
+  };
+  return {
+    id:             r.id || base.id || uid(),
+    endereco:       txt(r.endereco, base.endereco),
+    bairro:         txt(r.bairro, base.bairro),
+    municipio:      txt(r.municipio, base.municipio),
+    estado:         txt(r.estado, base.estado).toUpperCase().slice(0, 2),
+    matricula:      txt(r.matricula, base.matricula),
+    processo:       txt(r.processo, base.processo),
+    edital:         txt(r.edital, base.edital),
+    valorAvaliacao: num(r.valorAvaliacao, base.valorAvaliacao),
+    valorLance:     num(r.valorLance, base.valorLance),
+    dataLeilao:     txt(r.dataLeilao, base.dataLeilao),
+    status:         STATUS[r.status] ? r.status : (base.status || 'agendado'),
+    etapa:          ETAPAS[r.etapa] ? r.etapa : (base.etapa || 'novo'),
+    ocupacao:       OCUPACAO[r.ocupacao] ? r.ocupacao : (base.ocupacao || 'nao_informado'),
+    ocupante:       r.ocupante || base.ocupante || null,
+    arrematador:    txt(r.arrematador, base.arrematador),
+    fonte:          txt(r.fonte, base.fonte),
+    link:           txt(r.link, base.link),
+    notas:          txt(r.notas, base.notas),
+    lida:           r.lida !== undefined ? !!r.lida : (base.lida ?? false),
+    historico:      base.historico || r.historico || [],
+    criadoEm:       base.criadoEm || r.criadoEm || new Date().toISOString(),
+    // Só carimba agora quando é de fato uma alteração. Rearrumar o registro na
+    // carga da página (sem `anterior`) não é edição e não pode apagar a data real.
+    atualizadoEm:   (!anterior && r.atualizadoEm) ? r.atualizadoEm : new Date().toISOString(),
+  };
+}
+
+function log(reg, texto) {
+  reg.historico = reg.historico || [];
+  reg.historico.unshift({ em: new Date().toISOString(), texto });
+  reg.historico = reg.historico.slice(0, 40);
+}
+
+/* ==================== tema ==================== */
+function tema(t) {
+  document.documentElement.setAttribute('data-tema', t);
+  $('#btn-tema').textContent = t === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem(CHAVE_TEMA, t); } catch (e) {}
+}
+
+/* ==================== filtros ==================== */
+function filtrar() {
+  const termo = semAcento($('#busca').value.trim());
+  const leitura = $('#f-leitura').value;
+  const status  = $('#f-status').value;
+  const etapa   = $('#f-etapa').value;
+  const periodo = $('#f-periodo').value;
+  const ocup    = $('#f-ocupacao').value;
+  const uf      = $('#f-uf').value;
+  const fonte   = $('#f-fonte').value;
+  const vmin    = $('#f-vmin').value ? Number($('#f-vmin').value) : null;
+  const vmax    = $('#f-vmax').value ? Number($('#f-vmax').value) : null;
+
+  return dados.filter(r => {
+    if (termo && !textoBusca(r).includes(termo)) return false;
+    if (leitura === 'nao' && r.lida) return false;
+    if (leitura === 'sim' && !r.lida) return false;
+    if (status && r.status !== status) return false;
+    if (etapa && r.etapa !== etapa) return false;
+    if (ocup && r.ocupacao !== ocup) return false;
+    if (uf && r.estado !== uf) return false;
+    if (fonte && r.fonte !== fonte) return false;
+    if (periodo) {
+      const d = diasAte(r.dataLeilao);
+      if (d === null) return false;
+      if (periodo === 'p7'  && !(d >= 0 && d <= 7))    return false;
+      if (periodo === 'p30' && !(d >= 0 && d <= 30))   return false;
+      if (periodo === 'p60' && !(d >= 0 && d <= 60))   return false;
+      if (periodo === 'u30' && !(d < 0 && d >= -30))   return false;
+      if (periodo === 'u90' && !(d < 0 && d >= -90))   return false;
+    }
+    const ref = r.valorLance ?? r.valorAvaliacao;
+    if (vmin !== null && (ref === null || ref < vmin)) return false;
+    if (vmax !== null && (ref === null || ref > vmax)) return false;
+    return true;
+  });
+}
+
+function ordenar(lista) {
+  const dir = ordDir === 'asc' ? 1 : -1;
+  return [...lista].sort((a, b) => {
+    let va = a[ordCampo], vb = b[ordCampo];
+    if (ordCampo === 'valorAvaliacao' || ordCampo === 'valorLance') {
+      va = va ?? -Infinity; vb = vb ?? -Infinity;
+      return (va - vb) * dir;
+    }
+    return String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR', { numeric: true }) * dir;
+  });
+}
+
+/* ==================== render ==================== */
+function render() {
+  visiveis = ordenar(filtrar());
+  renderKpis();
+  renderTabela();
+  renderTimeline();
+  renderPerfis();
+  $('#resumo-topo').textContent =
+    `${visiveis.length} de ${dados.length} imóveis · ${dados.filter(r => !r.lida).length} não lidos`;
+}
+
+function renderKpis() {
+  const naoLidas = dados.filter(r => !r.lida).length;
+  const urgentes = dados.filter(r => {
+    const d = diasAte(r.dataLeilao);
+    return r.status === 'agendado' && d !== null && d >= 0 && d < 7;
+  }).length;
+  const arrematados = dados.filter(r => r.status === 'arrematado');
+  const somaAv = visiveis.reduce((s, r) => s + (r.valorAvaliacao || 0), 0);
+
+  // Deságio considera todo leilão com lance registrado — arrematado ou já
+  // finalizado —, senão a média ignora metade dos casos concluídos.
+  let desagioMedio = '—';
+  const comAmbos = dados.filter(r =>
+    (r.status === 'arrematado' || r.status === 'finalizado') && r.valorAvaliacao && r.valorLance);
+  if (comAmbos.length) {
+    const m = comAmbos.reduce((s, r) => s + (1 - r.valorLance / r.valorAvaliacao), 0) / comAmbos.length;
+    desagioMedio = (m * 100).toFixed(1).replace('.', ',') + '%';
+  }
+
+  const cards = [
+    { v: dados.length,  r: 'imóveis monitorados' },
+    { v: naoLidas,      r: 'não lidos', c: 'marca-cor' },
+    { v: urgentes,      r: 'leilão em menos de 7 dias', c: 'destaque' },
+    { v: arrematados.length, r: 'arrematados' },
+    { v: desagioMedio,  r: 'deságio médio na arrematação' },
+    { v: moeda(somaAv), r: 'avaliação somada (filtro atual)' },
+  ];
+  $('#kpis').innerHTML = cards.map(k =>
+    `<div class="kpi ${k.c || ''}"><div class="v">${esc(k.v)}</div><div class="r">${esc(k.r)}</div></div>`
+  ).join('');
+}
+
+function renderTabela() {
+  const tb = $('#tbody');
+  $('#vazio').hidden = visiveis.length > 0;
+  tb.innerHTML = visiveis.map(r => {
+    const d = diasAte(r.dataLeilao);
+    const urg = r.status === 'agendado' && d !== null && d >= 0 && d < 7;
+    const local = [r.bairro, r.municipio, r.estado].filter(Boolean).join(' · ');
+    const mapa = 'https://www.google.com/maps/search/' +
+      encodeURIComponent([r.endereco, r.bairro, r.municipio, r.estado].filter(Boolean).join(', '));
+    let desagio = '';
+    if (r.valorAvaliacao && r.valorLance) {
+      const pct = (1 - r.valorLance / r.valorAvaliacao) * 100;
+      if (pct > 0) desagio = `<div class="desagio">−${pct.toFixed(1).replace('.', ',')}%</div>`;
+    }
+    return `<tr data-id="${r.id}" class="${r.lida ? '' : 'nao-lida'} ${urg ? 'urgente' : ''}">
+      <td class="col-ponto">${r.lida ? '' : '<span class="ponto" title="Não lido"></span>'}</td>
+      <td>
+        <div class="end-p">${esc(r.endereco || '(sem endereço)')}</div>
+        ${local ? `<div class="end-s">${esc(local)}</div>` : ''}
+        ${r.matricula ? `<div class="end-s">Matrícula ${esc(r.matricula)}</div>` : ''}
+        ${r.processo ? `<div class="end-s">Proc. ${esc(r.processo)}</div>` : ''}
+        <a class="mapa" href="${mapa}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver no mapa ↗</a>
+      </td>
+      <td>${dataBr(r.dataLeilao)}${urg ? `<span class="dias-al">${d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : 'em ' + d + ' dias'}</span>` : ''}</td>
+      <td><span class="tag st-${r.status}">${STATUS[r.status]}</span></td>
+      <td><span class="tag et">${ETAPAS[r.etapa]}</span></td>
+      <td>${moeda(r.valorAvaliacao)}</td>
+      <td>${moeda(r.valorLance)}${desagio}</td>
+      <td>${(r.ocupacao === 'ocupado' || r.ocupacao === 'litigio')
+        ? `<a href="#" class="tag oc-${r.ocupacao} link-ocupante" data-id="${r.id}">${OCUPACAO[r.ocupacao]}${r.ocupante && r.ocupante.nome ? ' ·' : ' +'}</a>${r.ocupante && r.ocupante.nome ? `<div class="end-s">${esc(r.ocupante.nome)}</div>` : ''}`
+        : `<span class="tag oc-${r.ocupacao}">${OCUPACAO[r.ocupacao]}</span>`}</td>
+      <td>${r.arrematador
+        ? `<a href="#" class="link-perfil" data-nome="${esc(r.arrematador)}">${esc(r.arrematador)}</a>`
+        : '—'}</td>
+      <td>${esc(r.fonte) || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  tb.querySelectorAll('tr').forEach(tr =>
+    tr.addEventListener('click', () => abrir(tr.dataset.id)));
+  tb.querySelectorAll('.link-perfil').forEach(a =>
+    a.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();   // não abre o imóvel junto
+      abrirPerfil(a.dataset.nome);
+    }));
+  tb.querySelectorAll('.link-ocupante').forEach(a =>
+    a.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      abrirOcupante(a.dataset.id);
+    }));
+}
+
+function renderTimeline() {
+  const prox = dados
+    .filter(r => r.status === 'agendado' && r.dataLeilao)
+    .map(r => ({ r, d: diasAte(r.dataLeilao) }))
+    .filter(x => x.d !== null && x.d >= 0)
+    .sort((a, b) => a.d - b.d);
+
+  if (!prox.length) {
+    $('#tl').innerHTML = '<p class="vazio">Nenhum leilão agendado.</p>';
+    return;
+  }
+  $('#tl').innerHTML = prox.map(({ r, d }) => {
+    const txt = d === 0 ? 'hoje' : d === 1 ? 'amanhã' : `em ${d} dias`;
+    const local = [r.bairro, r.municipio, r.estado].filter(Boolean).join(' · ');
+    return `<div class="tl-item ${d < 7 ? 'urg' : ''}" data-id="${r.id}">
+      <div class="tl-info">
+        <strong>${esc(r.endereco || '(sem endereço)')}</strong>
+        <span>${esc(local)} — ${dataBr(r.dataLeilao)} — ${esc(r.fonte) || 'fonte não informada'}</span>
+      </div>
+      <div class="tl-badge">${txt}</div>
+    </div>`;
+  }).join('');
+  $('#tl').querySelectorAll('.tl-item').forEach(el =>
+    el.addEventListener('click', () => abrir(el.dataset.id)));
+}
+
+function popularSelects() {
+  const preencher = (sel, itens, rotulos) => {
+    const atual = sel.value;
+    const primeiro = sel.options[0].outerHTML;
+    sel.innerHTML = primeiro + itens.map(i =>
+      `<option value="${esc(i)}">${esc(rotulos ? rotulos[i] : i)}</option>`).join('');
+    sel.value = atual;
+  };
+  preencher($('#f-status'), Object.keys(STATUS), STATUS);
+  preencher($('#f-etapa'), Object.keys(ETAPAS), ETAPAS);
+  preencher($('#f-ocupacao'), Object.keys(OCUPACAO), OCUPACAO);
+  preencher($('#f-uf'), [...new Set(dados.map(r => r.estado).filter(Boolean))].sort());
+  preencher($('#f-fonte'), [...new Set(dados.map(r => r.fonte).filter(Boolean))].sort());
+}
+
+/* ==================== modal ==================== */
+function abrir(id) {
+  const r = dados.find(x => x.id === id);
+  if (!r) return;
+  editando = id;
+  if (!r.lida) { r.lida = true; log(r, 'Marcado como lido'); salvar(); }
+  mostrarModal(r);
+  render();
+}
+
+function novo() {
+  editando = null;
+  mostrarModal(normalizar({ status: 'agendado', etapa: 'novo', lida: true }));
+}
+
+function mostrarModal(r) {
+  const campo = (id, rot, tipo, val, extra = '') =>
+    `<label ${extra}>${rot}<input id="m-${id}" type="${tipo}" value="${esc(val ?? '')}"></label>`;
+  const opts = (obj, atual) => Object.entries(obj)
+    .map(([k, v]) => `<option value="${k}" ${k === atual ? 'selected' : ''}>${v}</option>`).join('');
+
+  const hist = (r.historico || []).length
+    ? `<div class="hist"><h4>Histórico</h4><ul>${r.historico.slice(0, 12).map(h =>
+        `<li>${dataBr(h.em.slice(0,10))} — ${esc(h.texto)}</li>`).join('')}</ul></div>`
+    : '';
+
+  const html = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">
+    <h2>${editando ? 'Editar imóvel' : 'Novo imóvel'}</h2>
+    <div class="sub">${editando ? 'Cadastrado em ' + dataBr(r.criadoEm.slice(0,10)) : 'Preencha os dados do imóvel e do leilão.'}</div>
+    <div class="grade">
+      ${campo('endereco', 'Endereço', 'text', r.endereco, 'class="full"')}
+      ${campo('bairro', 'Bairro', 'text', r.bairro)}
+      ${campo('municipio', 'Município', 'text', r.municipio)}
+      ${campo('estado', 'UF', 'text', r.estado)}
+      ${campo('matricula', 'Matrícula', 'text', r.matricula)}
+      ${campo('processo', 'Nº do processo', 'text', r.processo)}
+      ${campo('edital', 'Edital / referência', 'text', r.edital)}
+      ${campo('valorAvaliacao', 'Valor de avaliação (R$)', 'number', r.valorAvaliacao)}
+      ${campo('valorLance', 'Valor arrematado (R$)', 'number', r.valorLance)}
+      ${campo('dataLeilao', 'Data do leilão', 'date', r.dataLeilao)}
+      <label>Status<select id="m-status">${opts(STATUS, r.status)}</select></label>
+      <label>Etapa<select id="m-etapa">${opts(ETAPAS, r.etapa)}</select></label>
+      <label>Ocupação (conforme edital)<select id="m-ocupacao">${opts(OCUPACAO, r.ocupacao)}</select></label>
+      ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
+      ${campo('fonte', 'Fonte', 'text', r.fonte)}
+      ${campo('link', 'Link do edital / processo', 'url', r.link, 'class="full"')}
+      <label class="full">Anotações<textarea id="m-notas" rows="4">${esc(r.notas)}</textarea></label>
+    </div>
+    ${hist}
+    <div class="modal-rodape">
+      ${editando ? '<button class="btn btn-perigo" id="m-excluir">Excluir</button>' : ''}
+      ${editando ? '<button class="btn" id="m-nao-lida">Marcar não lida</button>' : ''}
+      <span class="esp"></span>
+      <button class="btn" id="m-cancelar">Cancelar</button>
+      <button class="btn btn-p" id="m-salvar">Salvar</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  $('#m-salvar').addEventListener('click', salvarModal);
+  $('#m-cancelar').addEventListener('click', fecharModal);
+  $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
+  if (editando) {
+    $('#m-excluir').addEventListener('click', () => excluir(editando));
+    $('#m-nao-lida').addEventListener('click', () => {
+      const reg = dados.find(x => x.id === editando);
+      reg.lida = false; log(reg, 'Marcado como não lido'); salvar(); fecharModal(); render();
+    });
+  }
+  $('#m-endereco').focus();
+}
+
+function fecharModal() {
+  $('#overlay')?.remove();
+  editando = null;
+  perfilAberto = null;
+}
+
+/* ---------- ficha do ocupante ---------- */
+// Onde cada dado consta oficialmente. Isso não muda com redesenho de portal,
+// por isso é mais confiável do que guardar link fixo.
+const FONTES_OCUPANTE = [
+  ['Nome do executado',      'Consta do edital e da capa dos autos. É a via mais direta quando o ocupante é o próprio devedor.'],
+  ['Confirmação de ocupação','Auto de constatação lavrado pelo oficial de justiça, juntado aos autos.'],
+  ['Vínculo (locação etc.)', 'Contrato juntado aos autos, ou declarado no auto de constatação.'],
+  ['Contato',                'Somente o que a própria pessoa fornecer ao procurar você. Registre aqui a data e o meio.'],
+];
+
+function linksConsulta(r) {
+  const links = [];
+  if (r.processo) {
+    links.push([`Consulta processual — ${esc(r.processo)}`,
+      'https://www.google.com/search?q=' + encodeURIComponent('"' + r.processo + '" consulta processual')]);
+    links.push([`Publicações no diário oficial`,
+      'https://www.google.com/search?q=' + encodeURIComponent('"' + r.processo + '" diário justiça edital')]);
+  }
+  if (r.matricula && r.municipio) {
+    links.push([`Registro de Imóveis — ${esc(r.municipio)}`,
+      'https://www.google.com/search?q=' + encodeURIComponent('registro de imóveis ' + r.municipio + ' ' + (r.estado || '') + ' certidão de matrícula')]);
+  }
+  if (r.link) links.push(['Edital / anúncio salvo neste registro', r.link]);
+  return links;
+}
+
+function abrirOcupante(id) {
+  const r = dados.find(x => x.id === id);
+  if (!r) return;
+  fecharModal();
+  editando = id;
+  const o = r.ocupante || { nome:'', vinculo:'nao_identificado', documento:'', telefone:'', email:'', origem:'', notas:'' };
+
+  const campo = (k, rot, val, tipo = 'text', ph = '') =>
+    `<label>${rot}<input id="oc-${k}" type="${tipo}" value="${esc(val ?? '')}" placeholder="${esc(ph)}"></label>`;
+  const consultas = linksConsulta(r);
+
+  const html = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">
+    <h2>Ocupante do imóvel</h2>
+    <div class="sub">${esc(r.endereco || '(sem endereço)')} — ${esc([r.municipio, r.estado].filter(Boolean).join('/'))}</div>
+
+    <div class="aviso-box" style="margin-bottom:14px">
+      Preenchimento <strong>manual</strong>. Este bloco guarda dado pessoal de terceiro:
+      preencha só o que você apurou por via legítima e registre a origem. Contato deve vir
+      da própria pessoa, quando ela procurar você.
+    </div>
+
+    <div class="grade">
+      <label class="full">Nome<input id="oc-nome" type="text" value="${esc(o.nome)}" placeholder="conforme edital ou autos"></label>
+      <label>Vínculo com o imóvel<select id="oc-vinculo">
+        ${Object.entries(VINCULO).map(([k,v]) => `<option value="${k}" ${k===o.vinculo?'selected':''}>${v}</option>`).join('')}
+      </select></label>
+      ${campo('documento', 'Documento', o.documento, 'text', 'só se constar dos autos')}
+      ${campo('telefone', 'Telefone', o.telefone, 'text', 'informado pelo próprio')}
+      ${campo('email', 'E-mail', o.email, 'email', 'informado pelo próprio')}
+      <label class="full">Origem da informação<input id="oc-origem" type="text" value="${esc(o.origem)}" placeholder="ex: edital 001/2026; auto de constatação fl. 42; contato recebido em 03/08"></label>
+      <label class="full">Anotações<textarea id="oc-notas" rows="3">${esc(o.notas)}</textarea></label>
+    </div>
+
+    <div class="hist">
+      <h4>Onde encontrar cada informação</h4>
+      <ul>${FONTES_OCUPANTE.map(([t, d]) => `<li><strong>${t}:</strong> ${d}</li>`).join('')}</ul>
+    </div>
+
+    ${consultas.length ? `<div class="hist"><h4>Consultar a partir deste registro</h4><ul>
+      ${consultas.map(([t, u]) => `<li><a class="link-imovel" href="${esc(u)}" target="_blank" rel="noopener">${t} ↗</a></li>`).join('')}
+    </ul></div>` : ''}
+
+    <div class="modal-rodape">
+      <button class="btn btn-perigo" id="oc-limpar">Limpar ficha</button>
+      <span class="esp"></span>
+      <button class="btn" id="oc-cancelar">Cancelar</button>
+      <button class="btn btn-p" id="oc-salvar">Salvar</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  $('#oc-salvar').addEventListener('click', () => salvarOcupante(id));
+  $('#oc-cancelar').addEventListener('click', fecharModal);
+  $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
+  $('#oc-limpar').addEventListener('click', () => {
+    if (!confirm('Apagar os dados do ocupante deste imóvel?')) return;
+    r.ocupante = null;
+    log(r, 'Ficha do ocupante apagada');
+    salvar(); fecharModal(); render();
+    toast('Ficha apagada.');
+  });
+  $('#oc-nome').focus();
+}
+
+function salvarOcupante(id) {
+  const r = dados.find(x => x.id === id);
+  if (!r) return;
+  const v = (k) => $('#oc-' + k).value.trim();
+  const novo = {
+    nome: v('nome'), vinculo: v('vinculo'), documento: v('documento'),
+    telefone: v('telefone'), email: v('email'), origem: v('origem'), notas: v('notas'),
+  };
+  const vazia = !novo.nome && !novo.documento && !novo.telefone && !novo.email && !novo.notas;
+  const tinha = !!(r.ocupante && r.ocupante.nome);
+  r.ocupante = vazia ? null : novo;
+  log(r, tinha ? 'Ficha do ocupante atualizada' : 'Ficha do ocupante preenchida');
+  salvar(); fecharModal(); render();
+  toast('Ficha salva.');
+}
+
+/* ---------- perfil do arrematador ---------- */
+function abrirPerfil(nome) {
+  let p = acharPerfil(nome);
+  if (!p) { sincronizarPerfis(); p = acharPerfil(nome); }
+  if (!p) return;
+  perfilAberto = p.id;
+  fecharModal(); perfilAberto = p.id;
+
+  const st = estatisticasPerfil(p);
+  const campo = (id, rot, val, tipo = 'text', ph = '') =>
+    `<label>${rot}<input id="pf-${id}" type="${tipo}" value="${esc(val ?? '')}" placeholder="${esc(ph)}"></label>`;
+
+  const imoveis = st.lista.map(r => `
+    <li><a href="#" class="link-imovel" data-id="${r.id}">${esc(r.endereco || '(sem endereço)')}</a>
+    — ${esc([r.municipio, r.estado].filter(Boolean).join('/'))}
+    — ${moeda(r.valorLance)} <span class="end-s">(aval. ${moeda(r.valorAvaliacao)})</span></li>`).join('');
+
+  const html = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">
+    <h2>${esc(p.nome)}</h2>
+    <div class="sub">
+      ${st.qtd} imóvel(is) arrematado(s)${st.ufs.length ? ' · ' + esc(st.ufs.join(', ')) : ''}
+      · total ${moeda(st.total)}${st.desagio !== null ? ' · deságio médio ' + st.desagio.toFixed(1).replace('.', ',') + '%' : ''}
+    </div>
+
+    <div class="aviso-box" style="margin-bottom:14px">
+      Cadastro criado automaticamente a partir dos imóveis já registrados. Os campos de
+      contato são <strong>manuais</strong> e existem para quem já se relacionou com você
+      ou para dados cadastrais públicos de pessoa jurídica (Receita Federal).
+      Registre sempre a origem — é ela que sustenta a licitude do que está aqui.
+    </div>
+
+    <div class="grade">
+      <label class="full">Nome / razão social<input id="pf-nome" type="text" value="${esc(p.nome)}"></label>
+      <label>Tipo<select id="pf-tipo">
+        <option value="indefinido" ${p.tipo === 'indefinido' ? 'selected' : ''}>Não definido</option>
+        <option value="pj" ${p.tipo === 'pj' ? 'selected' : ''}>Pessoa jurídica</option>
+        <option value="pf" ${p.tipo === 'pf' ? 'selected' : ''}>Pessoa física</option>
+      </select></label>
+      ${campo('documento', 'CNPJ (público) / documento', p.documento, 'text', 'somente se apurado licitamente')}
+      ${campo('email', 'E-mail de contato', p.email, 'email')}
+      ${campo('telefone', 'Telefone de contato', p.telefone, 'text')}
+      ${campo('site', 'Site / perfil comercial', p.site, 'url')}
+      ${campo('origemDados', 'Origem da informação', p.origemDados, 'text', 'ex: Receita Federal, contato do próprio')}
+      <label class="full">Anotações<textarea id="pf-notas" rows="3">${esc(p.notas)}</textarea></label>
+    </div>
+
+    ${st.qtd ? `<div class="hist"><h4>Imóveis arrematados</h4><ul>${imoveis}</ul></div>` : ''}
+
+    <div class="modal-rodape">
+      <button class="btn btn-perigo" id="pf-excluir">Excluir cadastro</button>
+      <span class="esp"></span>
+      <button class="btn" id="pf-cancelar">Fechar</button>
+      <button class="btn btn-p" id="pf-salvar">Salvar</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  $('#pf-salvar').addEventListener('click', salvarPerfil);
+  $('#pf-cancelar').addEventListener('click', fecharModal);
+  $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
+  $('#pf-excluir').addEventListener('click', () => {
+    if (!confirm(`Excluir o cadastro de "${p.nome}"?\n\nOs imóveis não são apagados.`)) return;
+    perfis = perfis.filter(x => x.id !== p.id);
+    salvar(); fecharModal(); render();
+    toast('Cadastro excluído.');
+  });
+  $$('#overlay .link-imovel').forEach(a =>
+    a.addEventListener('click', e => { e.preventDefault(); abrir(a.dataset.id); }));
+}
+
+function salvarPerfil() {
+  const p = perfis.find(x => x.id === perfilAberto);
+  if (!p) return;
+  const v = (id) => $('#pf-' + id).value.trim();
+  const nomeNovo = v('nome');
+  if (!nomeNovo) { toast('O nome não pode ficar vazio.', true); return; }
+  Object.assign(p, {
+    nome: nomeNovo, tipo: v('tipo'), documento: v('documento'), email: v('email'),
+    telefone: v('telefone'), site: v('site'), origemDados: v('origemDados'), notas: v('notas'),
+    atualizadoEm: new Date().toISOString(),
+  });
+  salvar(); fecharModal(); render();
+  toast('Cadastro salvo.');
+}
+
+function renderPerfis() {
+  const alvo = $('#lista-perfis');
+  if (!alvo) return;
+  if (!perfis.length) {
+    alvo.innerHTML = '<p class="vazio">Nenhum arrematador cadastrado ainda. Os cadastros aparecem sozinhos conforme você registra imóveis arrematados.</p>';
+    return;
+  }
+  const ordenados = [...perfis]
+    .map(p => ({ p, st: estatisticasPerfil(p) }))
+    .sort((a, b) => b.st.qtd - a.st.qtd || b.st.total - a.st.total);
+
+  alvo.innerHTML = ordenados.map(({ p, st }) => `
+    <div class="tl-item" data-id="${p.id}">
+      <div class="tl-info">
+        <strong>${esc(p.nome)} ${p.tipo === 'pj' ? '<span class="tag et">PJ</span>' : p.tipo === 'pf' ? '<span class="tag et">PF</span>' : ''}</strong>
+        <span>${st.qtd} imóvel(is)${st.ufs.length ? ' · ' + esc(st.ufs.join(', ')) : ''}
+        · ${moeda(st.total)}${st.desagio !== null ? ' · deságio ' + st.desagio.toFixed(1).replace('.', ',') + '%' : ''}
+        ${p.telefone || p.email ? ' · contato registrado' : ''}</span>
+      </div>
+      <div class="tl-badge">${st.qtd}</div>
+    </div>`).join('');
+
+  alvo.querySelectorAll('.tl-item').forEach(el => el.addEventListener('click', () => {
+    const p = perfis.find(x => x.id === el.dataset.id);
+    if (p) abrirPerfil(p.nome);
+  }));
+}
+
+function salvarModal() {
+  const v = (id) => $('#m-' + id).value;
+  const entrada = {
+    endereco: v('endereco'), bairro: v('bairro'), municipio: v('municipio'), estado: v('estado'),
+    matricula: v('matricula'), processo: v('processo'), edital: v('edital'),
+    valorAvaliacao: v('valorAvaliacao'), valorLance: v('valorLance'), dataLeilao: v('dataLeilao'),
+    status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
+    arrematador: v('arrematador'), fonte: v('fonte'), link: v('link'), notas: v('notas'),
+  };
+  if (!entrada.endereco.trim() && !entrada.matricula.trim()) {
+    toast('Informe ao menos o endereço ou a matrícula.', true);
+    return;
+  }
+  if (editando) {
+    const i = dados.findIndex(x => x.id === editando);
+    const antigo = dados[i];
+    const novoReg = normalizar(entrada, antigo);
+    if (antigo.etapa !== novoReg.etapa) log(novoReg, `Etapa: ${ETAPAS[antigo.etapa]} → ${ETAPAS[novoReg.etapa]}`);
+    if (antigo.status !== novoReg.status) log(novoReg, `Status: ${STATUS[antigo.status]} → ${STATUS[novoReg.status]}`);
+    dados[i] = novoReg;
+  } else {
+    const reg = normalizar({ ...entrada, lida: true });
+    log(reg, 'Registro criado manualmente');
+    dados.push(reg);
+  }
+  sincronizarPerfis();   // arrematador novo ganha cadastro na hora
+  salvar(); fecharModal(); popularSelects(); render();
+  toast('Registro salvo.');
+}
+
+function excluir(id) {
+  const r = dados.find(x => x.id === id);
+  if (!confirm(`Excluir "${r.endereco || 'imóvel sem endereço'}"?\n\nNão há como desfazer.`)) return;
+  dados = dados.filter(x => x.id !== id);
+  salvar(); fecharModal(); popularSelects(); render();
+  toast('Registro excluído.');
+}
+
+/* ==================== CSV ==================== */
+function parseCSV(texto) {
+  const linhas = [];
+  let linha = [], campo = '', aspas = false;
+  const sep = (texto.split('\n')[0].match(/;/g) || []).length >
+              (texto.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (aspas) {
+      if (c === '"') { if (texto[i+1] === '"') { campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === sep) { linha.push(campo); campo = ''; }
+    else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+    else if (c !== '\r') campo += c;
+  }
+  if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
+  if (!linhas.length) return [];
+  const cab = linhas[0].map(h => h.trim().replace(/^﻿/, ''));
+  return linhas.slice(1).filter(l => l.some(v => v.trim())).map(l => {
+    const o = {};
+    cab.forEach((h, i) => o[h] = (l[i] ?? '').trim());
+    return o;
+  });
+}
+
+function paraCSV(lista) {
+  const e = v => { const s = String(v ?? ''); return /[";,\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  return [COLUNAS.join(',')].concat(lista.map(r => COLUNAS.map(c => e(r[c])).join(','))).join('\n');
+}
+
+function baixar(nome, conteudo, tipo) {
+  const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+  const a = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ==================== importação ==================== */
+// Chave de fallback para quando não há matrícula nem processo: endereço +
+// município + data do leilão, normalizados (sem acento, pontuação ou caixa).
+function chaveEndereco(r) {
+  const n = (s) => semAcento(s).replace(/[^a-z0-9]/g, '');
+  const base = n(r.endereco) + '|' + n(r.municipio);
+  return base.length > 2 ? base + '|' + String(r.dataLeilao ?? '').trim() : '';
+}
+
+function importar(brutos) {
+  let novos = 0, atualizados = 0;
+  const avisos = [];
+  brutos.forEach((b, i) => {
+    if (!String(b.endereco || '').trim() && !String(b.matricula || '').trim()) {
+      avisos.push(`Linha ${i + 2}: sem endereço nem matrícula — ignorada.`);
+      return;
+    }
+    const chaveM = String(b.matricula || '').trim();
+    const chaveP = String(b.processo || '').trim();
+    const chaveE = chaveEndereco(b);
+    const existente = dados.find(r =>
+      (chaveM && r.matricula === chaveM) ||
+      (chaveP && r.processo === chaveP) ||
+      (chaveE && !chaveM && !chaveP && !r.matricula && !r.processo && chaveEndereco(r) === chaveE));
+    if (existente) {
+      const i2 = dados.indexOf(existente);
+      const atualizado = normalizar(b, existente, true);
+      log(atualizado, 'Atualizado por importação em lote');
+      dados[i2] = atualizado;
+      atualizados++;
+    } else {
+      const reg = normalizar({ ...b, lida: false, etapa: b.etapa || 'novo' }, null, true);
+      log(reg, 'Importado em lote');
+      dados.push(reg);
+      novos++;
+    }
+  });
+  const fichas = sincronizarPerfis();   // arrematadores novos ganham ficha
+  salvar(); popularSelects(); render();
+  return { novos, atualizados, avisos, fichas };
+}
+
+/* ==================== demo ==================== */
+function demo() {
+  const hoje = new Date();
+  const dt = (n) => { const d = new Date(hoje); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  return [
+    { endereco:'Rua das Laranjeiras, 245, apto 302', bairro:'Laranjeiras', municipio:'Rio de Janeiro', estado:'RJ',
+      matricula:'45.678 - 6º RGI/RJ', processo:'0801234-55.2024.8.19.0001', valorAvaliacao:620000,
+      dataLeilao:dt(4), status:'agendado', fonte:'TJRJ', etapa:'qualificacao' },
+    { endereco:'Av. Paulista, 1500, cj 1204', bairro:'Bela Vista', municipio:'São Paulo', estado:'SP',
+      matricula:'112.334 - 8º CRI/SP', processo:'1009876-22.2023.8.26.0100', valorAvaliacao:1450000,
+      valorLance:980000, dataLeilao:dt(-52), status:'arrematado', arrematador:'Construtora Vale Verde Ltda',
+      fonte:'TJSP', etapa:'em_contato' },
+    { endereco:'Rua XV de Novembro, 88', bairro:'Centro', municipio:'Curitiba', estado:'PR',
+      valorAvaliacao:340000, dataLeilao:dt(3), status:'agendado', fonte:'Leiloeiro oficial', etapa:'novo' },
+    { endereco:'Rua Barão de Ibirocaí, 512', bairro:'Vila Mariana', municipio:'São Paulo', estado:'SP',
+      matricula:'78.221 - 12º CRI/SP', valorAvaliacao:890000, valorLance:712000, dataLeilao:dt(-35),
+      status:'finalizado', arrematador:'M. H. Souza', fonte:'TJSP', etapa:'reuniao_marcada' },
+    { endereco:'Estrada do Tindiba, 1220, casa 2', bairro:'Anil', municipio:'Rio de Janeiro', estado:'RJ',
+      matricula:'23.109 - 9º RGI/RJ', valorAvaliacao:410000, dataLeilao:dt(45), status:'agendado',
+      fonte:'TJRJ', etapa:'novo' },
+    { endereco:'Av. Boa Viagem, 3400, apto 1801', bairro:'Boa Viagem', municipio:'Recife', estado:'PE',
+      valorAvaliacao:980000, dataLeilao:dt(20), status:'suspenso', fonte:'TJPE', etapa:'follow_up' },
+  ];
+}
+
+/* ==================== eventos ==================== */
+function init() {
+  // tema
+  let tSalvo = null;
+  try { tSalvo = localStorage.getItem(CHAVE_TEMA); } catch (e) {}
+  tema(tSalvo || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  $('#btn-tema').addEventListener('click', () =>
+    tema(document.documentElement.getAttribute('data-tema') === 'dark' ? 'light' : 'dark'));
+
+  // abas
+  $$('.aba').forEach(b => b.addEventListener('click', () => {
+    $$('.aba').forEach(x => x.classList.remove('ativa'));
+    $$('.painel').forEach(x => x.classList.remove('ativo'));
+    b.classList.add('ativa');
+    $('#p-' + b.dataset.p).classList.add('ativo');
+  }));
+
+  // filtros
+  $('#busca').addEventListener('input', debounce(render, 200));
+  ['#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-periodo','#f-uf','#f-fonte'].forEach(s =>
+    $(s).addEventListener('change', render));
+  ['#f-vmin','#f-vmax'].forEach(s => $(s).addEventListener('input', debounce(render, 250)));
+  $('#btn-limpar').addEventListener('click', () => {
+    ['#busca','#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-periodo','#f-uf','#f-fonte','#f-vmin','#f-vmax']
+      .forEach(s => $(s).value = '');
+    render();
+  });
+
+  // ordenação
+  $$('th[data-ord]').forEach(th => th.addEventListener('click', () => {
+    const c = th.dataset.ord;
+    if (ordCampo === c) ordDir = ordDir === 'asc' ? 'desc' : 'asc';
+    else { ordCampo = c; ordDir = 'asc'; }
+    render();
+  }));
+
+  // ações
+  $('#btn-novo').addEventListener('click', novo);
+  $('#btn-marcar-lidas').addEventListener('click', () => {
+    let n = 0;
+    visiveis.forEach(r => { if (!r.lida) { r.lida = true; log(r, 'Marcado como lido em lote'); n++; } });
+    salvar(); render();
+    toast(n ? `${n} registro(s) marcado(s) como lido(s).` : 'Nenhum não lido na seleção atual.');
+  });
+  $('#btn-csv').addEventListener('click', () => {
+    if (!visiveis.length) return toast('Nada para exportar.', true);
+    baixar(`leiloes-${new Date().toISOString().slice(0,10)}.csv`, '﻿' + paraCSV(visiveis), 'text/csv;charset=utf-8');
+  });
+  $('#btn-pdf').addEventListener('click', () => window.print());
+
+  // importar
+  let arq = null;
+  $('#arquivo').addEventListener('change', e => {
+    arq = e.target.files[0] || null;
+    $('#btn-importar').disabled = !arq;
+  });
+  $('#btn-importar').addEventListener('click', async () => {
+    if (!arq) return;
+    const res = $('#res-import');
+    try {
+      const texto = await arq.text();
+      const brutos = arq.name.toLowerCase().endsWith('.json')
+        ? (Array.isArray(JSON.parse(texto)) ? JSON.parse(texto) : [JSON.parse(texto)])
+        : parseCSV(texto);
+      const { novos, atualizados, avisos } = importar(brutos);
+      res.hidden = false; res.className = 'resultado';
+      res.innerHTML = `<strong>Importação concluída.</strong><br>
+        Novos (não lidos): ${novos} · Atualizados: ${atualizados} · Total na base: ${dados.length}
+        ${avisos.length ? '<br><br><strong>Avisos:</strong><br>' + avisos.map(esc).join('<br>') : ''}`;
+      $('#arquivo').value = ''; arq = null; $('#btn-importar').disabled = true;
+      toast(`${novos} novo(s), ${atualizados} atualizado(s).`);
+    } catch (err) {
+      res.hidden = false; res.className = 'resultado erro';
+      res.innerHTML = `<strong>Erro na importação:</strong> ${esc(err.message)}`;
+    }
+  });
+  $('#btn-modelo').addEventListener('click', () => {
+    const modelo = 'endereco,bairro,municipio,estado,matricula,processo,edital,valorAvaliacao,valorLance,dataLeilao,status,arrematador,fonte,link,notas\n' +
+      '"Rua Exemplo, 123",Centro,São Paulo,SP,"12.345 - 1º CRI",1001234-55.2024.8.26.0100,"Edital 001/2026",300000,,2026-09-01,agendado,,TJSP,,\n';
+    baixar('modelo-importacao.csv', '﻿' + modelo, 'text/csv;charset=utf-8');
+  });
+
+  // backup
+  $('#btn-backup').addEventListener('click', () => {
+    baixar(`backup-leiloes-${new Date().toISOString().slice(0,10)}.json`,
+      JSON.stringify(dados, null, 2), 'application/json');
+    toast('Backup exportado.');
+  });
+  $('#btn-restaurar-lbl').addEventListener('click', () => $('#restaurar').click());
+  $('#restaurar').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const res = $('#res-backup');
+    try {
+      const lista = JSON.parse(await f.text());
+      if (!Array.isArray(lista)) throw new Error('O arquivo não contém uma lista de registros.');
+      if (!confirm(`Restaurar ${lista.length} registro(s)?\n\nIsso substitui todos os dados atuais.`)) return;
+      dados = lista.map(r => normalizar(r));
+      salvar(); popularSelects(); render();
+      res.hidden = false; res.className = 'resultado';
+      res.innerHTML = `<strong>Backup restaurado.</strong> ${dados.length} registro(s) carregado(s).`;
+      toast('Backup restaurado.');
+    } catch (err) {
+      res.hidden = false; res.className = 'resultado erro';
+      res.innerHTML = `<strong>Erro:</strong> ${esc(err.message)}`;
+    }
+    e.target.value = '';
+  });
+  $('#btn-demo').addEventListener('click', () => {
+    const { novos } = importar(demo());
+    toast(`${novos} exemplo(s) carregado(s).`);
+  });
+  $('#btn-apagar').addEventListener('click', () => {
+    if (!confirm(`Apagar TODOS os ${dados.length} registros?\n\nNão há como desfazer.`)) return;
+    if (!confirm('Confirma definitivamente? Exporte um backup antes se ainda não fez.')) return;
+    dados = []; salvar(); popularSelects(); render();
+    toast('Todos os registros foram apagados.');
+  });
+
+  // teclado
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') fecharModal();
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); $('#busca').focus();
+    }
+    if ($('#overlay') && (e.ctrlKey || e.metaKey) && e.key === 'Enter') salvarModal();
+  });
+
+  carregar();
+  popularSelects();
+  render();
+  sincronizarFeed();
+}
+
+/* ==================== feed automático ==================== */
+// Só funciona quando a página está publicada (GitHub Pages). Aberta por
+// file://, o navegador bloqueia qualquer requisição de rede — por isso nem
+// tentamos, para não poluir o console com erro que não é problema.
+async function sincronizarFeed() {
+  if (!/^https?:$/.test(location.protocol)) return;
+  const aviso = $('#feed-status');
+  try {
+    const resp = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const lista = await resp.json();
+    if (!Array.isArray(lista)) throw new Error('data.json não é uma lista');
+
+    // importar() já mescla com deduplicação, marca os novos como NÃO LIDOS
+    // e preserva etapa/anotações que você editou. Nada é sobrescrito.
+    const { novos, atualizados } = importar(lista);
+    if (aviso) {
+      aviso.hidden = false;
+      aviso.textContent = novos || atualizados
+        ? `Feed atualizado: ${novos} novo(s), ${atualizados} atualizado(s).`
+        : `Feed sem novidades (${lista.length} registros conferidos).`;
+    }
+    if (novos) toast(`${novos} imóvel(is) novo(s) no feed.`);
+  } catch (e) {
+    if (aviso) {
+      aviso.hidden = false;
+      aviso.textContent = 'Não foi possível ler o feed (data.json): ' + e.message;
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

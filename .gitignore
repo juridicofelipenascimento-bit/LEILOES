@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Backups exportados pela plataforma — são dados seus, não vão para o
+# repositório (que é público se o GitHub Pages estiver ativo).
+backup-leiloes-*.json
+leiloes-*.csv
