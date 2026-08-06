@@ -469,8 +469,8 @@ const VINCULO = {
   terceiro:         'Terceiro ocupante',
   antigo_prop:      'Antigo proprietário',
 };
-const COLUNAS = ['id','endereco','bairro','municipio','estado','matricula','processo','edital',
-  'valorAvaliacao','valorLance','dataLeilao','status','etapa','ocupacao','arrematador','fonte','link','notas','lida'];
+const COLUNAS = ['id','codigoFonte','endereco','bairro','municipio','estado','matricula','processo','edital',
+  'valorAvaliacao','valorMinimo','valorLance','dataLeilao','status','etapa','ocupacao','arrematador','fonte','link','notas','lida'];
 
 /* ==================== estado ==================== */
 let dados = [];
@@ -508,6 +508,27 @@ function textoBusca(r) {
 }
 
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+/**
+ * Converte valor monetário para número, aceitando as três formas que chegam:
+ *   número puro do feed JSON (57227.73) — usar como está;
+ *   formato brasileiro ("150.000,00")  — ponto é milhar, vírgula é decimal;
+ *   formato simples ("57227.73")       — ponto é decimal.
+ * Tratar tudo como brasileiro apaga o ponto decimal e multiplica o valor por
+ * 100 — foi assim que os valores do feed vinham corrompidos.
+ */
+function paraNumero(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  let s = String(v ?? '').trim().replace(/[^\d.,-]/g, '');
+  if (!s) return null;
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');        // 150.000,00 → 150000.00
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+    s = s.replace(/\./g, '');                          // 1.500.000 → 1500000
+  }                                                    // 57227.73 fica intacto
+  const n = Number(s);
+  return Number.isNaN(n) ? null : n;
+}
 
 function moeda(v) {
   if (v === null || v === undefined || v === '') return '—';
@@ -631,8 +652,7 @@ function normalizar(r, anterior, preservarVazios) {
   const vazio = (v) => v === undefined || v === null || String(v).trim() === '';
   const num = (v, fb) => {
     if (vazio(v)) return preservarVazios ? (fb ?? null) : (v === undefined ? (fb ?? null) : null);
-    const n = Number(String(v).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.'));
-    return Number.isNaN(n) ? null : n;
+    return paraNumero(v);
   };
   const txt = (v, fb) => {
     if (vazio(v)) return preservarVazios ? String(fb ?? '').trim() : String(v ?? fb ?? '').trim();
@@ -640,6 +660,7 @@ function normalizar(r, anterior, preservarVazios) {
   };
   return {
     id:             r.id || base.id || uid(),
+    codigoFonte:    txt(r.codigoFonte, base.codigoFonte),
     endereco:       txt(r.endereco, base.endereco),
     bairro:         txt(r.bairro, base.bairro),
     municipio:      txt(r.municipio, base.municipio),
@@ -648,6 +669,7 @@ function normalizar(r, anterior, preservarVazios) {
     processo:       txt(r.processo, base.processo),
     edital:         txt(r.edital, base.edital),
     valorAvaliacao: num(r.valorAvaliacao, base.valorAvaliacao),
+    valorMinimo:    num(r.valorMinimo, base.valorMinimo),
     valorLance:     num(r.valorLance, base.valorLance),
     dataLeilao:     txt(r.dataLeilao, base.dataLeilao),
     status:         STATUS[r.status] ? r.status : (base.status || 'agendado'),
@@ -782,9 +804,12 @@ function renderTabela() {
     const local = [r.bairro, r.municipio, r.estado].filter(Boolean).join(' · ');
     const mapa = 'https://www.google.com/maps/search/' +
       encodeURIComponent([r.endereco, r.bairro, r.municipio, r.estado].filter(Boolean).join(', '));
+    // Compara com o lance vencedor quando houve arrematação; senão, com o
+    // preço mínimo pedido — que é o número que decide a compra.
+    const refValor = r.valorLance ?? r.valorMinimo;
     let desagio = '';
-    if (r.valorAvaliacao && r.valorLance) {
-      const pct = (1 - r.valorLance / r.valorAvaliacao) * 100;
+    if (r.valorAvaliacao && refValor) {
+      const pct = (1 - refValor / r.valorAvaliacao) * 100;
       if (pct > 0) desagio = `<div class="desagio">−${pct.toFixed(1).replace('.', ',')}%</div>`;
     }
     return `<tr data-id="${r.id}" class="${r.lida ? '' : 'nao-lida'} ${urg ? 'urgente' : ''}">
@@ -800,7 +825,11 @@ function renderTabela() {
       <td><span class="tag st-${r.status}">${STATUS[r.status]}</span></td>
       <td><span class="tag et">${ETAPAS[r.etapa]}</span></td>
       <td>${moeda(r.valorAvaliacao)}</td>
-      <td>${moeda(r.valorLance)}${desagio}</td>
+      <td>${r.valorLance !== null && r.valorLance !== undefined
+            ? moeda(r.valorLance)
+            : (r.valorMinimo !== null && r.valorMinimo !== undefined
+                ? `${moeda(r.valorMinimo)}<div class="end-s">preço mínimo</div>`
+                : '—')}${desagio}</td>
       <td>${(r.ocupacao === 'ocupado' || r.ocupacao === 'litigio')
         ? `<a href="#" class="tag oc-${r.ocupacao} link-ocupante" data-id="${r.id}">${OCUPACAO[r.ocupacao]}${r.ocupante && r.ocupante.nome ? ' ·' : ' +'}</a>${r.ocupante && r.ocupante.nome ? `<div class="end-s">${esc(r.ocupante.nome)}</div>` : ''}`
         : `<span class="tag oc-${r.ocupacao}">${OCUPACAO[r.ocupacao]}</span>`}</td>
@@ -904,6 +933,7 @@ function mostrarModal(r) {
       ${campo('processo', 'Nº do processo', 'text', r.processo)}
       ${campo('edital', 'Edital / referência', 'text', r.edital)}
       ${campo('valorAvaliacao', 'Valor de avaliação (R$)', 'number', r.valorAvaliacao)}
+      ${campo('valorMinimo', 'Preço mínimo / lance inicial (R$)', 'number', r.valorMinimo)}
       ${campo('valorLance', 'Valor arrematado (R$)', 'number', r.valorLance)}
       ${campo('dataLeilao', 'Data do leilão', 'date', r.dataLeilao)}
       <label>Status<select id="m-status">${opts(STATUS, r.status)}</select></label>
@@ -1169,6 +1199,7 @@ function salvarModal() {
     endereco: v('endereco'), bairro: v('bairro'), municipio: v('municipio'), estado: v('estado'),
     matricula: v('matricula'), processo: v('processo'), edital: v('edital'),
     valorAvaliacao: v('valorAvaliacao'), valorLance: v('valorLance'), dataLeilao: v('dataLeilao'),
+    valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
     arrematador: v('arrematador'), fonte: v('fonte'), link: v('link'), notas: v('notas'),
   };
@@ -1256,13 +1287,18 @@ function importar(brutos) {
       avisos.push(`Linha ${i + 2}: sem endereço nem matrícula — ignorada.`);
       return;
     }
+    // Código da fonte tem prioridade: quando a origem já dá identificador
+    // estável (nº do imóvel da Caixa), ele vale mais que heurística de endereço.
+    const chaveC = String(b.codigoFonte || '').trim();
     const chaveM = String(b.matricula || '').trim();
     const chaveP = String(b.processo || '').trim();
     const chaveE = chaveEndereco(b);
     const existente = dados.find(r =>
-      (chaveM && r.matricula === chaveM) ||
-      (chaveP && r.processo === chaveP) ||
-      (chaveE && !chaveM && !chaveP && !r.matricula && !r.processo && chaveEndereco(r) === chaveE));
+      (chaveC && r.codigoFonte === chaveC) ||
+      (!chaveC && chaveM && r.matricula === chaveM) ||
+      (!chaveC && chaveP && r.processo === chaveP) ||
+      (chaveE && !chaveC && !chaveM && !chaveP &&
+       !r.codigoFonte && !r.matricula && !r.processo && chaveEndereco(r) === chaveE));
     if (existente) {
       const i2 = dados.indexOf(existente);
       const atualizado = normalizar(b, existente, true);

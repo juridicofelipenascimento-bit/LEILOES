@@ -62,7 +62,77 @@ const OCUPACAO_VALIDAS = ['nao_informado', 'ocupado', 'desocupado', 'litigio'];
  *     },
  *   ];
  * ------------------------------------------------------------------ */
-const COLETORES_HTTP = [];
+const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA',
+             'PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+
+const PAUSA = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Caixa Econômica Federal — maior detentora de imóvel retomado do país.
+ * Publica uma lista por UF em CSV, atualizada diariamente, sem login.
+ *
+ * Detalhes que quebram se ignorados:
+ *  - o arquivo é Latin-1 (windows-1252), não UTF-8;
+ *  - a linha 1 é título; o cabeçalho está na linha 2;
+ *  - separador é ";" e os campos vêm com espaços sobrando;
+ *  - o site usa proteção anti-bot, então mandamos User-Agent identificável
+ *    e uma pausa entre as UFs, para acessar de forma respeitosa.
+ */
+const coletorCaixa = {
+  nome: 'Caixa Econômica Federal',
+  async coletar() {
+    const out = [];
+    for (const uf of UFS) {
+      const url = `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${uf}.csv`;
+      try {
+        const resp = await fetch(url, {
+          headers: {
+            'User-Agent': 'monitor-leiloes/1.0 (uso juridico; contato via repositorio GitHub)',
+            'Accept': 'text/csv,*/*',
+          },
+        });
+        if (!resp.ok) { console.error(`    ${uf}: HTTP ${resp.status}`); continue; }
+
+        // Latin-1: decodificar como UTF-8 corromperia todo acento.
+        const texto = new TextDecoder('windows-1252').decode(await resp.arrayBuffer());
+
+        // Descarta a linha de título para o cabeçalho real virar a primeira.
+        const linhas = texto.split('\n');
+        const semTitulo = linhas.slice(1).join('\n');
+        const itens = parseCSV(semTitulo);
+
+        itens.forEach((i) => {
+          const endereco = txt(i['Endereço']);
+          if (!endereco) return;
+          const avaliacao = num(i['Valor de avaliação']);
+          const preco = num(i['Preço']);
+          out.push({
+            codigoFonte:    txt(i['N° do imóvel']),
+            endereco,
+            bairro:         txt(i['Bairro']),
+            municipio:      txt(i['Cidade']),
+            estado:         txt(i['UF']),
+            valorAvaliacao: avaliacao,
+            valorMinimo:    preco,
+            status:         'agendado',
+            ocupacao:       'nao_informado',   // a lista não informa; consta do edital
+            fonte:          'Caixa — ' + (txt(i['Modalidade de venda']) || 'venda'),
+            link:           txt(i['Link de acesso']),
+            notas:          txt(i['Descrição']),
+          });
+        });
+        console.log(`    ${uf}: ${itens.length}`);
+      } catch (e) {
+        // Uma UF com problema não pode derrubar as outras 26.
+        console.error(`    ${uf}: ERRO — ${e.message}`);
+      }
+      await PAUSA(1500);   // acesso respeitoso
+    }
+    return out;
+  },
+};
+
+const COLETORES_HTTP = [coletorCaixa];
 
 /* ---------------------------- utilidades ---------------------------- */
 
@@ -70,11 +140,22 @@ const RE_ACENTOS = new RegExp('[\\u0300-\\u036f]', 'g');
 const semAcento = (s) =>
   String(s ?? '').normalize('NFD').replace(RE_ACENTOS, '').toLowerCase();
 
+/**
+ * Aceita número puro (feed JSON), formato brasileiro ("150.000,00", ponto é
+ * milhar) e formato simples ("57227.73", ponto é decimal). Tratar tudo como
+ * brasileiro apagaria o ponto decimal e multiplicaria o valor por 100.
+ */
 function num(v) {
-  if (v === undefined || v === null || String(v).trim() === '') return null;
-  const n = Number(
-    String(v).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.')
-  );
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (v === undefined || v === null) return null;
+  let s = String(v).trim().replace(/[^\d.,-]/g, '');
+  if (!s) return null;
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+    s = s.replace(/\./g, '');
+  }
+  const n = Number(s);
   return Number.isNaN(n) ? null : n;
 }
 
@@ -115,6 +196,7 @@ function parseCSV(texto) {
 
 function normalizar(r) {
   return {
+    codigoFonte:    txt(r.codigoFonte),
     endereco:       txt(r.endereco),
     bairro:         txt(r.bairro),
     municipio:      txt(r.municipio),
@@ -123,6 +205,7 @@ function normalizar(r) {
     processo:       txt(r.processo),
     edital:         txt(r.edital),
     valorAvaliacao: num(r.valorAvaliacao),
+    valorMinimo:    num(r.valorMinimo),
     valorLance:     num(r.valorLance),
     dataLeilao:     data(r.dataLeilao),
     status:         STATUS_VALIDOS.includes(r.status) ? r.status : 'agendado',
@@ -134,8 +217,13 @@ function normalizar(r) {
   };
 }
 
-/** Mesma regra da plataforma: matrícula > processo > endereço+município+data. */
+/**
+ * Mesma regra da plataforma, com o código da fonte na frente: quando a origem
+ * já dá um identificador estável (o nº do imóvel da Caixa, por exemplo), ele é
+ * mais confiável que qualquer heurística de endereço.
+ */
 function chave(r) {
+  if (r.codigoFonte) return 'c:' + semAcento(r.codigoFonte).replace(/[^a-z0-9]/g, '');
   if (r.matricula) return 'm:' + semAcento(r.matricula).replace(/[^a-z0-9]/g, '');
   if (r.processo)  return 'p:' + semAcento(r.processo).replace(/[^a-z0-9]/g, '');
   const base = semAcento(r.endereco).replace(/[^a-z0-9]/g, '') + '|' +
