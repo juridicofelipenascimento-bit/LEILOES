@@ -82,19 +82,38 @@ const coletorCaixa = {
   nome: 'Caixa Econômica Federal',
   async coletar() {
     const out = [];
+    const falhas = [];
     for (const uf of UFS) {
       const url = `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${uf}.csv`;
       try {
         const resp = await fetch(url, {
           headers: {
-            'User-Agent': 'monitor-leiloes/1.0 (uso juridico; contato via repositorio GitHub)',
-            'Accept': 'text/csv,*/*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+                          '(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept': 'text/csv,text/plain,*/*',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Referer': 'https://venda-imoveis.caixa.gov.br/sistema/download-lista.asp',
           },
         });
-        if (!resp.ok) { console.error(`    ${uf}: HTTP ${resp.status}`); continue; }
+        if (!resp.ok) {
+          console.error(`    ${uf}: BLOQUEADO — HTTP ${resp.status} ${resp.statusText}`);
+          falhas.push(`${uf}:HTTP${resp.status}`);
+          continue;
+        }
 
         // Latin-1: decodificar como UTF-8 corromperia todo acento.
         const texto = new TextDecoder('windows-1252').decode(await resp.arrayBuffer());
+
+        // O servidor pode responder 200 com página de CAPTCHA/bloqueio em vez
+        // do CSV. Sem esta checagem o parser não acha nada e falha em silêncio,
+        // que é pior: o data.json fica vazio sem explicação no log.
+        if (!texto.includes('N° do imóvel') && !texto.includes('Lista de Im')) {
+          const amostra = texto.slice(0, 160).replace(/\s+/g, ' ');
+          console.error(`    ${uf}: RESPOSTA NÃO É O CSV — provável bloqueio anti-bot.`);
+          console.error(`         início da resposta: ${amostra}`);
+          falhas.push(`${uf}:naoCSV`);
+          continue;
+        }
 
         // Descarta a linha de título para o cabeçalho real virar a primeira.
         const linhas = texto.split('\n');
@@ -127,6 +146,17 @@ const coletorCaixa = {
         console.error(`    ${uf}: ERRO — ${e.message}`);
       }
       await PAUSA(1500);   // acesso respeitoso
+    }
+
+    console.log(`    --- resumo Caixa: ${out.length} imóveis, ${falhas.length} UF(s) com falha ---`);
+    if (falhas.length) console.log(`    falhas: ${falhas.join(', ')}`);
+    if (out.length === 0) {
+      console.log('');
+      console.log('    >>> NENHUM imóvel veio da Caixa.');
+      console.log('    >>> Se as falhas acima são HTTP 403 ou "não é o CSV", a proteção');
+      console.log('    >>> anti-bot está barrando os servidores do GitHub Actions.');
+      console.log('    >>> Nesse caso a coleta precisa rodar de outro lugar — veja o README.');
+      console.log('');
     }
     return out;
   },
