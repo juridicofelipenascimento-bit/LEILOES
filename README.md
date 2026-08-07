@@ -91,10 +91,17 @@ arquivo de dados que uma rotina diária mantém atualizado.
 1. No repositório: **Settings** (engrenagem no topo) → **Pages** (menu esquerdo).
 2. Em **Source**, escolha **Deploy from a branch**.
 
-   > ⚠️ **Não escolha "GitHub Actions" aqui.** É o padrão que o GitHub sugere e
-   > é a segunda causa mais comum de falha na implantação: essa opção espera um
-   > workflow de publicação que este projeto não usa, e o deploy quebra. Se você
-   > já selecionou, troque para **Deploy from a branch** agora.
+   > ⚠️ **Não escolha "GitHub Actions" aqui.** É o padrão que o GitHub sugere,
+   > e é a causa mais comum de falha na implantação deste projeto.
+   >
+   > Ao escolher essa opção, **o GitHub cria sozinho um workflow de publicação**
+   > (`static.yml` ou similar). Como este projeto é HTML estático puro e o Pages
+   > passa a operar em modo branch, esse workflow fica esperando na fila
+   > (`deployment_queued`) até estourar o timeout de 10 minutos.
+   >
+   > **Se você já selecionou:** volte para **Deploy from a branch** *e* apague o
+   > workflow que o GitHub criou em `.github/workflows/` — deve sobrar apenas o
+   > `atualizar-dados.yml`. Detalhes na seção de erros, no fim deste arquivo.
 
 3. Em **Branch**, escolha `main` e a pasta `/ (root)`. Clique em **Save**.
 4. Espere 1 a 2 minutos e recarregue a página. Vai aparecer o endereço:
@@ -126,31 +133,115 @@ Para mudar o horário, edite a linha `cron` em
 `.github/workflows/atualizar-dados.yml` — o valor está em UTC, que é 3 horas à
 frente de Brasília.
 
-## Passo 6 — Alimentar com dados
+## Passo 6 — Coleta automática diária (roda na sua máquina)
 
-Este é o passo que você repete no dia a dia.
+**Por que não roda no GitHub:** a Caixa usa proteção anti-bot (Radware) que
+responde CAPTCHA para os IPs de datacenter do GitHub Actions — testado, os 27
+estados foram recusados. Do seu IP residencial passa normalmente, também
+testado. Então a coleta roda no seu computador e o GitHub só hospeda.
 
-1. No repositório, entre na pasta **`fontes`**.
-2. **Add file → Upload files**.
-3. Suba o CSV ou JSON que você já recebe (planilha de leiloeiro, relatório,
-   extração, lista que você montou).
-4. **Commit changes**.
+O ciclo, depois de configurado, é sem intervenção sua:
 
-Na próxima execução — ou rodando na mão pelo Passo 5 — o coletor incorpora o
-arquivo ao `data.json`. Abra o link do Passo 3 e os imóveis novos aparecem
-marcados como **NÃO LIDOS**.
+```
+sua máquina (diário) → baixa 27 CSVs → processa → envia data.json
+                                                        ↓
+                    você abre o link  ←  GitHub Pages publica
+```
+
+### 6.1 — Instalar o Node (uma vez só)
+
+Baixe em [nodejs.org](https://nodejs.org) a versão **LTS** e instale
+(avançar → avançar → concluir). Para conferir, abra o PowerShell e digite
+`node --version` — deve aparecer algo como `v20.x.x`.
+
+### 6.2 — Testar rodando na mão
+
+Abra a pasta do repositório **clonada pelo GitHub Desktop** (não a pasta
+original), entre em `scripts`, clique com o botão direito em
+**`baixar-caixa.ps1`** → **Executar com o PowerShell**.
+
+Ele mostra o progresso UF a UF, processa e envia. Ao terminar, abra o link do
+site — os imóveis devem estar lá, marcados como NÃO LIDOS.
+
+> Se o Windows bloquear a execução de scripts, abra o PowerShell **como
+> administrador** e rode uma vez:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+### 6.3 — Agendar para rodar sozinho
+
+1. Tecla Windows → digite **Agendador de Tarefas** → abra
+2. **Criar Tarefa Básica** (menu direito)
+3. Nome: `Coletar leilões` → Avançar
+4. **Diariamente** → Avançar → escolha o horário (ex.: 07:00) → Avançar
+5. **Iniciar um programa** → Avançar
+6. Em *Programa/script*: `powershell.exe`
+7. Em *Adicionar argumentos*, cole (ajustando o caminho para o da sua pasta
+   clonada):
+
+   ```
+   -ExecutionPolicy Bypass -File "C:\Users\SEU-USUARIO\Documents\GitHub\LEILOES\scripts\baixar-caixa.ps1"
+   ```
+
+8. Avançar → Concluir
+
+Pronto. Todo dia no horário escolhido, com o computador ligado, a coleta roda e
+o site se atualiza sozinho.
+
+### O que é coletado
+
+Imóveis da **Caixa Econômica Federal nos 27 estados** — a maior detentora de
+imóvel retomado do país.
+
+Origem: `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{UF}.csv` —
+a mesma lista oferecida em
+[Download da lista completa](https://venda-imoveis.caixa.gov.br/sistema/download-lista.asp),
+atualizada diariamente pela Caixa.
+
+Cada imóvel traz: nº do imóvel, UF, cidade, bairro, endereço, preço mínimo,
+valor de avaliação, modalidade de venda, descrição (área, quartos, vagas) e link
+para a página oficial. O deságio é calculado automaticamente.
+
+O nº do imóvel é usado como identificador estável: rodar todo dia **atualiza**
+em vez de duplicar, e imóveis novos entram marcados como **NÃO LIDOS**.
+
+> **Limitação honesta:** essa lista traz o *estoque* à venda, não a *data* do
+> leilão — o CSV não tem esse campo. Esses registros entram sem data, não
+> aparecem na Timeline e não disparam o alerta de 7 dias. A data está no edital
+> de cada imóvel, no link que acompanha o registro.
+
+### Complemento manual (opcional)
+
+Se você receber planilha de leiloeiro, suba em **`fontes`** →
+**Add file → Upload files** → **Commit changes**. É incorporada na mesma
+execução, com a mesma deduplicação.
 
 Detalhes de colunas e formatos: [`fontes/LEIA-ME.md`](fontes/LEIA-ME.md).
 
-## Passo 7 (opcional) — Coletores automáticos de portais
+## Passo 7 (opcional) — Acrescentar mais fontes
 
-O arquivo [`scripts/coletar.mjs`](scripts/coletar.mjs) tem um espaço marcado
-`COLETORES_HTTP`, hoje vazio de propósito, com um exemplo comentado do formato.
+Em [`scripts/coletar.mjs`](scripts/coletar.mjs), a lista `COLETORES_HTTP` já
+contém o coletor da Caixa — use-o como modelo. Cada coletor é uma função que
+devolve um array de registros; se um falhar, os outros seguem rodando e o
+`data.json` não é zerado.
 
-Está vazio porque um coletor não validado contra o site real quebra na primeira
-mudança de layout — e quebra em silêncio, deixando você confiando em dado velho.
-Antes de adicionar qualquer portal, confira o `robots.txt` e os termos de uso, e
-prefira endpoint estruturado (JSON) a raspar HTML.
+Antes de acrescentar um portal, confira o `robots.txt` e os termos de uso, e
+prefira endpoint estruturado (JSON/CSV) a raspar HTML — raspagem de HTML quebra
+na primeira mudança de layout, e quebra em silêncio.
+
+Não há coleta em sistemas judiciais (e-SAJ, PJe): acesso automatizado com
+credencial de advogado viola os termos desses sistemas, e o acesso fica
+registrado no seu nome.
+
+### Detalhes que o coletor da Caixa já trata
+
+Se for escrever o seu, estes três pontos quebram silenciosamente:
+
+- **Codificação Latin-1.** O arquivo da Caixa não é UTF-8; ler como UTF-8
+  corrompe todo acento.
+- **Cabeçalho na linha 2.** A linha 1 é título ("Lista de Imóveis da Caixa").
+- **Formato numérico.** `150.000,00` é brasileiro (ponto = milhar), mas
+  `57227.73` vindo de JSON tem ponto decimal. Tratar tudo como brasileiro
+  multiplica o valor por 100.
 
 ---
 
@@ -255,6 +346,39 @@ leiloes-imoveis/
 
 Vá em **Actions** no repositório e clique na execução com ❌ para ver o log.
 Os três erros comuns, em ordem de frequência:
+
+### O deploy fica em "deployment_queued" e morre em ~10 min
+
+Sintoma no log:
+
+```
+Deploy to GitHub Pages
+Current status: deployment_queued      (repetindo dezenas de vezes)
+Error: Timeout reached, aborting!
+Canceling Pages deployment...
+```
+
+**Causa:** existe um workflow publicando via `actions/deploy-pages` enquanto o
+Pages está em modo branch. Os dois lados ficam inconsistentes e o deploy espera
+na fila uma publicação que nunca é aceita.
+
+Esse workflow **não faz parte deste projeto** — o GitHub o cria sozinho quando
+você escolhe *GitHub Actions* como Source. Este projeto é HTML estático puro e
+**não precisa de workflow de publicação**.
+
+**Correção:**
+
+1. Vá em `.github/workflows/` e **apague todo arquivo que não seja
+   `atualizar-dados.yml`** (costuma ser `static.yml`, `pages.yml` ou
+   `jekyll-gh-pages.yml`). Abra → ícone da lixeira → **Commit changes**.
+2. **Settings → Pages → Source = Deploy from a branch**, branch `main`,
+   pasta `/ (root)` → **Save**.
+3. **Settings → General** (role até o fim): o repositório precisa estar
+   **Public**. Em plano gratuito, repositório privado não publica no Pages — e
+   o sintoma é exatamente esse, fila infinita.
+
+Deve haver **apenas um** workflow no repositório: `atualizar-dados.yml`, que
+coleta dados. Ele não publica nada — quem publica é o Pages, direto do branch.
 
 ### "Page build failed" / o site não abre
 

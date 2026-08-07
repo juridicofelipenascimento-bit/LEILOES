@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * Coletor de dados de leilão.
  *
@@ -62,111 +62,53 @@ const OCUPACAO_VALIDAS = ['nao_informado', 'ocupado', 'desocupado', 'litigio'];
  *     },
  *   ];
  * ------------------------------------------------------------------ */
-const UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA',
-             'PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+const COLETORES_HTTP = [];
 
-const PAUSA = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Caixa Econômica Federal — maior detentora de imóvel retomado do país.
- * Publica uma lista por UF em CSV, atualizada diariamente, sem login.
+/* ------------------------------------------------------------------ *
+ * FORMATO CAIXA
  *
- * Detalhes que quebram se ignorados:
- *  - o arquivo é Latin-1 (windows-1252), não UTF-8;
- *  - a linha 1 é título; o cabeçalho está na linha 2;
- *  - separador é ";" e os campos vêm com espaços sobrando;
- *  - o site usa proteção anti-bot, então mandamos User-Agent identificável
- *    e uma pausa entre as UFs, para acessar de forma respeitosa.
- */
-const coletorCaixa = {
-  nome: 'Caixa Econômica Federal',
-  async coletar() {
-    const out = [];
-    const falhas = [];
-    for (const uf of UFS) {
-      const url = `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${uf}.csv`;
-      try {
-        const resp = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-                          '(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            'Accept': 'text/csv,text/plain,*/*',
-            'Accept-Language': 'pt-BR,pt;q=0.9',
-            'Referer': 'https://venda-imoveis.caixa.gov.br/sistema/download-lista.asp',
-          },
-        });
-        if (!resp.ok) {
-          console.error(`    ${uf}: BLOQUEADO — HTTP ${resp.status} ${resp.statusText}`);
-          falhas.push(`${uf}:HTTP${resp.status}`);
-          continue;
-        }
+ * A Caixa publica uma lista por UF em CSV, atualizada diariamente.
+ * O download NÃO roda aqui: a proteção anti-bot (Radware) responde CAPTCHA
+ * para os IPs de datacenter do GitHub Actions. Quem baixa é o script
+ * `baixar-caixa.ps1`, na máquina do usuário, e deixa os arquivos em `fontes/`.
+ *
+ * Este mapeador cuida das particularidades do arquivo:
+ *   - a linha 1 é título; o cabeçalho real está na linha 2;
+ *   - separador ";" e campos com espaços sobrando;
+ *   - nomes de coluna próprios ("N° do imóvel", "Cidade", "Endereço").
+ * (A codificação Latin-1 é tratada na leitura do arquivo, em lerPastaFontes.)
+ * ------------------------------------------------------------------ */
 
-        // Latin-1: decodificar como UTF-8 corromperia todo acento.
-        const texto = new TextDecoder('windows-1252').decode(await resp.arrayBuffer());
+/** Reconhece o CSV da Caixa pelo conteúdo, não pelo nome do arquivo. */
+function ehFormatoCaixa(texto) {
+  const inicio = texto.slice(0, 400);
+  return inicio.includes('N° do imóvel') || inicio.includes('Lista de Im');
+}
 
-        // O servidor pode responder 200 com página de CAPTCHA/bloqueio em vez
-        // do CSV. Sem esta checagem o parser não acha nada e falha em silêncio,
-        // que é pior: o data.json fica vazio sem explicação no log.
-        if (!texto.includes('N° do imóvel') && !texto.includes('Lista de Im')) {
-          const amostra = texto.slice(0, 160).replace(/\s+/g, ' ');
-          console.error(`    ${uf}: RESPOSTA NÃO É O CSV — provável bloqueio anti-bot.`);
-          console.error(`         início da resposta: ${amostra}`);
-          falhas.push(`${uf}:naoCSV`);
-          continue;
-        }
-
-        // Descarta a linha de título para o cabeçalho real virar a primeira.
-        const linhas = texto.split('\n');
-        const semTitulo = linhas.slice(1).join('\n');
-        const itens = parseCSV(semTitulo);
-
-        itens.forEach((i) => {
-          const endereco = txt(i['Endereço']);
-          if (!endereco) return;
-          const avaliacao = num(i['Valor de avaliação']);
-          const preco = num(i['Preço']);
-          out.push({
-            codigoFonte:    txt(i['N° do imóvel']),
-            endereco,
-            bairro:         txt(i['Bairro']),
-            municipio:      txt(i['Cidade']),
-            estado:         txt(i['UF']),
-            valorAvaliacao: avaliacao,
-            valorMinimo:    preco,
-            status:         'agendado',
-            ocupacao:       'nao_informado',   // a lista não informa; consta do edital
-            fonte:          'Caixa — ' + (txt(i['Modalidade de venda']) || 'venda'),
-            link:           txt(i['Link de acesso']),
-            notas:          txt(i['Descrição']),
-          });
-        });
-        console.log(`    ${uf}: ${itens.length}`);
-      } catch (e) {
-        // Uma UF com problema não pode derrubar as outras 26.
-        console.error(`    ${uf}: ERRO — ${e.message}`);
-      } finally {
-        // Em "finally" de propósito: os `continue` acima pulariam a pausa se
-        // ela ficasse no fim do laço, e aí uma sequência de falhas viraria 27
-        // requisições sem intervalo — justamente quando se deve desacelerar.
-        await PAUSA(1500);
-      }
-    }
-
-    console.log(`    --- resumo Caixa: ${out.length} imóveis, ${falhas.length} UF(s) com falha ---`);
-    if (falhas.length) console.log(`    falhas: ${falhas.join(', ')}`);
-    if (out.length === 0) {
-      console.log('');
-      console.log('    >>> NENHUM imóvel veio da Caixa.');
-      console.log('    >>> Se as falhas acima são HTTP 403 ou "não é o CSV", a proteção');
-      console.log('    >>> anti-bot está barrando os servidores do GitHub Actions.');
-      console.log('    >>> Nesse caso a coleta precisa rodar de outro lugar — veja o README.');
-      console.log('');
-    }
-    return out;
-  },
-};
-
-const COLETORES_HTTP = [coletorCaixa];
+function mapearCaixa(texto) {
+  // Descarta a linha de título para o cabeçalho real virar a primeira.
+  const semTitulo = texto.split('\n').slice(1).join('\n');
+  const out = [];
+  parseCSV(semTitulo).forEach((i) => {
+    const endereco = txt(i['Endereço']);
+    if (!endereco) return;
+    out.push({
+      codigoFonte:    txt(i['N° do imóvel']),
+      endereco,
+      bairro:         txt(i['Bairro']),
+      municipio:      txt(i['Cidade']),
+      estado:         txt(i['UF']),
+      valorAvaliacao: num(i['Valor de avaliação']),
+      valorMinimo:    num(i['Preço']),
+      status:         'agendado',
+      ocupacao:       'nao_informado',   // a lista não informa; consta do edital
+      fonte:          'Caixa — ' + (txt(i['Modalidade de venda']) || 'venda'),
+      link:           txt(i['Link de acesso']),
+      notas:          txt(i['Descrição']),
+    });
+  });
+  return out;
+}
 
 /* ---------------------------- utilidades ---------------------------- */
 
@@ -267,20 +209,42 @@ function chave(r) {
 
 /* ------------------------------ execução ------------------------------ */
 
+/**
+ * Decodifica o arquivo tentando UTF-8 primeiro. Se aparecer o caractere de
+ * substituição (U+FFFD), os bytes não eram UTF-8 válido — é o caso dos CSVs
+ * da Caixa, que vêm em Latin-1. Sem isso, todo acento vira lixo.
+ */
+function decodificar(buffer) {
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  if (!utf8.includes('�')) return utf8;
+  return new TextDecoder('windows-1252').decode(buffer);
+}
+
 async function lerPastaFontes() {
   if (!existsSync(DIR_FONTES)) return [];
   const arquivos = (await readdir(DIR_FONTES))
     .filter((f) => /\.(csv|json)$/i.test(f));
   const out = [];
   for (const nome of arquivos) {
-    const bruto = await readFile(path.join(DIR_FONTES, nome), 'utf-8');
     try {
-      const itens = nome.toLowerCase().endsWith('.json')
-        ? (Array.isArray(JSON.parse(bruto)) ? JSON.parse(bruto) : [JSON.parse(bruto)])
-        : parseCSV(bruto);
-      // Se o arquivo não trouxer a coluna "fonte", usa o nome do arquivo.
-      const rotulo = nome.replace(/\.(csv|json)$/i, '');
-      itens.forEach((i) => out.push({ fonte: rotulo, ...i }));
+      const bruto = decodificar(await readFile(path.join(DIR_FONTES, nome)));
+      let itens;
+
+      if (nome.toLowerCase().endsWith('.json')) {
+        const j = JSON.parse(bruto);
+        itens = Array.isArray(j) ? j : [j];
+      } else if (ehFormatoCaixa(bruto)) {
+        // CSV da Caixa: colunas próprias e linha de título. Já sai mapeado
+        // para o formato interno, com fonte e link corretos.
+        itens = mapearCaixa(bruto);
+      } else {
+        // CSV genérico: espera-se que as colunas já usem os nomes internos.
+        // Sem a coluna "fonte", usa-se o nome do arquivo como rótulo.
+        const rotulo = nome.replace(/\.(csv|json)$/i, '');
+        itens = parseCSV(bruto).map((i) => ({ fonte: rotulo, ...i }));
+      }
+
+      itens.forEach((i) => out.push(i));
       console.log(`  fontes/${nome}: ${itens.length} registro(s)`);
     } catch (e) {
       console.error(`  fontes/${nome}: ERRO ao interpretar — ${e.message}`);
