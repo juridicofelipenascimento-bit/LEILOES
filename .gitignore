@@ -1,0 +1,13 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Backups exportados pela plataforma — são dados seus, não vão para o
+# repositório (que é público se o GitHub Pages estiver ativo).
+backup-leiloes-*.json
+leiloes-*.csv
+
+# CSVs baixados da Caixa pelo baixar-caixa.ps1: são grandes e temporários.
+# Só o data.json resultante vai para o repositório.
+fontes/caixa-*.csv
