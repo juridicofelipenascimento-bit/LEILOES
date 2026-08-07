@@ -144,8 +144,12 @@ const coletorCaixa = {
       } catch (e) {
         // Uma UF com problema não pode derrubar as outras 26.
         console.error(`    ${uf}: ERRO — ${e.message}`);
+      } finally {
+        // Em "finally" de propósito: os `continue` acima pulariam a pausa se
+        // ela ficasse no fim do laço, e aí uma sequência de falhas viraria 27
+        // requisições sem intervalo — justamente quando se deve desacelerar.
+        await PAUSA(1500);
       }
-      await PAUSA(1500);   // acesso respeitoso
     }
 
     console.log(`    --- resumo Caixa: ${out.length} imóveis, ${falhas.length} UF(s) com falha ---`);
