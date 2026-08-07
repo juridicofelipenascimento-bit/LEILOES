@@ -1,0 +1,40 @@
+name: Atualizar dados de leilão
+
+# Roda todo dia às 06:00 no horário de Brasília (09:00 UTC).
+# Você também pode rodar na mão pela aba Actions do GitHub.
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+# Necessário para a Action conseguir gravar o data.json de volta no repositório.
+permissions:
+  contents: write
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      # Sem actions/setup-node de propósito: o runner do Ubuntu já traz Node 20+
+      # e o coletor não usa nenhuma dependência externa. Cada action baixada é
+      # um ponto a mais de falha ("Failed to resolve action download info").
+      - name: Conferir versão do Node
+        run: node --version
+
+      - name: Rodar o coletor
+        run: node scripts/coletar.mjs
+
+      # Sem if/else/fi de propósito: bloco multilinha em YAML quebra fácil se a
+      # indentacao se perder ao editar. O "||" faz o mesmo em uma linha só —
+      # "diff --staged --quiet" sai 0 quando NAO ha mudanca, entao o commit so
+      # roda quando ha algo novo. "push" sem commit e no-op e sai 0.
+      - name: Gravar alterações
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --staged --quiet || git commit -m "dados: atualizacao automatica"
+          git push
