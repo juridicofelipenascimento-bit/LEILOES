@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -15,8 +15,9 @@
   --texto: #1b1f26;
   --texto-suave: #5d6572;
   --borda: #dfe3e8;
-  --marca: #3bb3ae;
-  --marca-escura: #2b8b87;
+  /* Ciano oficial da COMPREC, extraído do arquivo vetorial da marca. */
+  --marca: #06babc;
+  --marca-escura: #048c8e;
   --primaria: #2f6fed;
   --sucesso: #1f9d55;
   --alerta: #d64545;
@@ -32,8 +33,8 @@
   --texto: #eaecf0;
   --texto-suave: #98a0ae;
   --borda: #2c313a;
-  --marca: #4ecdc7;
-  --marca-escura: #3bb3ae;
+  --marca: #22d3d5;
+  --marca-escura: #06babc;
   --primaria: #5b8cff;
   --sucesso: #35c273;
   --alerta: #ff6b6b;
@@ -42,6 +43,12 @@
   --sombra: 0 1px 3px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
 }
 * { box-sizing: border-box; }
+
+/* O navegador esconde [hidden] com display:none, mas QUALQUER regra nossa de
+   display vence a dele — e o elemento continua visível. Já me pegou três vezes
+   (aviso de backup, barra de seleção, tarja de teste). Esta regra encerra a
+   categoria: hidden esconde, ponto. */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--texto);
   font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -49,16 +56,65 @@ body {
 }
 
 /* ---------- topo ---------- */
+/* Barra superior na cor da marca, com logo e escrita em branco. */
 .topo {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 12px 20px; background: var(--superficie);
-  border-bottom: 1px solid var(--borda); position: sticky; top: 0; z-index: 20;
+  padding: 10px 20px; position: sticky; top: 0; z-index: 20;
+  background: linear-gradient(100deg, var(--marca-escura), var(--marca));
+  border-bottom: 1px solid color-mix(in srgb, var(--marca-escura) 70%, #000);
+  color: #fff;
 }
 .marca { display: flex; align-items: center; gap: 12px; }
-.marca svg { width: 34px; height: 34px; flex: none; }
-.marca-txt strong { display: block; font-size: 15px; line-height: 1.2; }
-.marca-txt span { font-size: 11.5px; color: var(--texto-suave); }
-.topo-acoes { display: flex; align-items: center; gap: 8px; }
+/* A logo já traz a escrita "COMPREC", então o texto ao lado sai. */
+.marca svg { height: 34px; width: auto; flex: none; }
+.marca-nome { display: none; }
+.marca-sub  { display: block; font-size: 11.5px; color: rgba(255,255,255,.9); font-weight: 600; }
+#resumo-topo { display: block; font-size: 10.5px; color: rgba(255,255,255,.62); }
+.topo-acoes { display: flex; align-items: center; gap: 7px; }
+
+/* Botões do topo: vidro sobre a cor da marca, em vez do estilo do corpo. */
+.btn-topo {
+  border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.13);
+  color: #fff; border-radius: 9px; padding: 7px 13px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  display: flex; align-items: center; gap: 7px; transition: background .13s;
+}
+.btn-topo:hover { background: rgba(255,255,255,.26); }
+.btn-topo.ico { padding: 7px 9px; }
+.btn-topo.ico svg { width: 16px; height: 16px; display: block; }
+.btn-topo.destaque { background: #fff; color: var(--marca-escura); border-color: #fff; }
+.btn-topo.destaque:hover { background: rgba(255,255,255,.88); }
+.pino {
+  background: #fff; color: var(--marca-escura); border-radius: 99px;
+  min-width: 19px; height: 19px; padding: 0 6px; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Perfil */
+.perfil-botao {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.13);
+  border-radius: 99px; padding: 4px 12px 4px 4px; color: #fff;
+}
+.perfil-botao:hover { background: rgba(255,255,255,.26); }
+.perfil-avatar {
+  width: 27px; height: 27px; border-radius: 50%; flex: none;
+  background: #fff; color: var(--marca-escura);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px; overflow: hidden;
+  background-size: cover; background-position: center;
+}
+.perfil-nome { font-size: 12.5px; font-weight: 600; max-width: 110px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Tarja do modo de teste — impossível confundir com dado real. */
+.tarja-teste {
+  background: #f5c518; color: #241a00;
+  font-weight: 700; font-size: 12.5px; letter-spacing: .2px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 14px; position: sticky; top: 54px; z-index: 19;
+}
+.tarja-teste svg { width: 16px; height: 16px; flex: none; }
 
 /* ---------- abas ---------- */
 .abas {
@@ -101,6 +157,23 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--marca); outline-offset: -1px; }
 .filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+
+/* Filtro em repouso: cinza e discreto. Filtro em uso: ciano — assim você
+   enxerga de relance o que está limitando a lista. */
+.filtros select, .filtros input {
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+  border-color: transparent;
+}
+.filtros select:hover, .filtros input:hover { border-color: var(--borda); color: var(--texto); }
+.filtros select.filtro-ativo, .filtros input.filtro-ativo {
+  background: color-mix(in srgb, var(--marca) 14%, var(--superficie-2));
+  border-color: var(--marca);
+  color: var(--marca);
+  font-weight: 600;
+}
+#busca.filtro-ativo { border-color: var(--marca); }
+
 .acoes-barra { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn {
   padding: 8px 14px; border: 1px solid var(--borda); border-radius: 7px;
@@ -115,7 +188,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--marca); out
 .btn-ico { padding: 7px 10px; font-size: 15px; line-height: 1; }
 /* Sol/lua em SVG, não emoji: emoji tem cor fixa do sistema e não aceita a cor
    da marca. Em SVG o traço herda currentColor. */
-#btn-tema { color: var(--marca); display: flex; align-items: center; padding: 7px 9px; }
+/* Branco, como os demais botões do topo. Antes herdava a cor da marca — e
+   ciano sobre cabeçalho ciano ficava invisível, que era o defeito relatado. */
+#btn-tema { color: #fff; display: flex; align-items: center; padding: 7px 9px; }
 #btn-tema svg { width: 17px; height: 17px; display: block; }
 #btn-tema:hover { color: var(--marca-escura); border-color: var(--marca); }
 :root[data-tema="dark"] #btn-tema:hover { color: #fff; }
@@ -214,10 +289,12 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 .sel-btn.solto { background: var(--bg); border: 1px solid var(--borda); }
 
 .sel-fechar {
-  border: none; background: transparent; color: var(--texto-suave);
-  font-size: 15px; cursor: pointer; padding: 5px 8px; border-radius: 7px; line-height: 1;
+  border: 1px solid var(--borda); background: var(--bg); color: var(--texto-suave);
+  font-size: 15px; cursor: pointer; border-radius: 9px; line-height: 1;
+  width: 34px; height: 34px; flex: none;      /* alvo grande e sempre clicável */
+  display: flex; align-items: center; justify-content: center;
 }
-.sel-fechar:hover { background: var(--alerta); color: #fff; }
+.sel-fechar:hover { background: var(--alerta); color: #fff; border-color: var(--alerta); }
 
 @media (max-width: 760px) {
   .barra-sel { left: 12px; right: 12px; transform: none; bottom: 12px; justify-content: center; }
@@ -309,6 +386,55 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 .mais-linhas { padding: 14px; text-align: center; color: var(--texto-suave); font-size: 13px;
   border-top: 1px solid var(--borda); }
 
+/* ---------- perfil ---------- */
+.perfil-edicao { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.perfil-foto {
+  width: 82px; height: 82px; border-radius: 50%; flex: none;
+  background: var(--marca); color: #06231f; background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 800; border: 3px solid var(--borda);
+}
+.perfil-campos { flex: 1; min-width: 210px; display: flex; flex-direction: column; gap: 9px; }
+.perfil-campos label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--texto-suave); }
+.perfil-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 9px; margin-top: 16px; }
+.pn { background: var(--bg); border: 1px solid var(--borda); border-radius: 9px; padding: 10px 12px; }
+.pn strong { display: block; font-size: 19px; }
+.pn span { font-size: 10.5px; color: var(--texto-suave); }
+.pn.clicavel { cursor: pointer; transition: border-color .12s, background .12s; }
+.pn.clicavel:hover { border-color: var(--marca); background: color-mix(in srgb, var(--marca) 9%, var(--bg)); }
+
+/* Tela de entrada */
+.lista-usuarios { display: flex; flex-direction: column; gap: 8px; }
+.cartao-usuario {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--bg); border: 1px solid var(--borda); border-radius: 11px;
+  padding: 10px 13px; cursor: pointer; color: var(--texto);
+  transition: border-color .12s, background .12s;
+}
+.cartao-usuario:hover { border-color: var(--marca); background: color-mix(in srgb, var(--marca) 8%, var(--bg)); }
+.cu-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex: none;
+  background: var(--marca); color: #04262a; background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;
+}
+.cu-txt strong { display: block; font-size: 14px; }
+.cu-txt span { font-size: 11.5px; color: var(--texto-suave); }
+.novo-perfil { margin-top: 14px; border-top: 1px solid var(--borda); padding-top: 12px; }
+.novo-perfil summary { cursor: pointer; color: var(--marca); font-size: 13px; font-weight: 600; }
+
+/* Ranking da equipe */
+.grafico { display: flex; flex-direction: column; gap: 7px; }
+.g-linha { display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+.g-linha.eu { font-weight: 700; color: var(--marca); }
+.g-pos { width: 24px; text-align: center; flex: none; }
+.g-nome { width: 130px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-barra { flex: 1; height: 15px; background: var(--superficie-2); border-radius: 99px; overflow: hidden; }
+.g-barra > span { display: block; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--marca-escura), var(--marca));
+  animation: cresce .5s ease-out; }
+@keyframes cresce { from { width: 0 !important; } }
+.g-num { width: 34px; text-align: right; flex: none; color: var(--texto-suave); }
+
 .kpi.clicavel { cursor: pointer; }
 .kpi.clicavel:hover { border-color: var(--alerta); }
 .kpi-dica { font-size: 10px; color: var(--texto-suave); margin-top: 5px; opacity: .75; }
@@ -335,7 +461,6 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 /* Lembrete de backup */
 /* O `display` abaixo é de autor e sobrepõe o `[hidden] { display:none }` do
    navegador — sem esta primeira regra, o atributo hidden não esconde nada. */
-.lembrete[hidden] { display: none; }
 .lembrete {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 11px 20px;
@@ -439,20 +564,40 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
 
 <header class="topo">
   <div class="marca">
-    <svg viewBox="0 0 200 200" aria-label="Logo" id="logo-svg">
-      <path d="M100 40 A60 60 0 0 1 100 160 L100 133 A33 33 0 0 0 100 67 Z" fill="var(--marca)"/>
-      <path d="M56 68 A32 32 0 0 1 56 132 L56 116 A16 16 0 0 0 56 84 Z" fill="var(--marca)"/>
+    <svg viewBox="40 0 762 430" aria-label="COMPREC" id="logo-svg">
+      <g transform="translate(0,513) scale(1,-1)">
+        <path fill="#fff" d="M357.5293 503.1510C374.2982 509.9023 392.5817 512.7486 410.6126 511.6422C435.5700 510.4145 459.9893 501.0568 479.5781 485.5805C480.3520 484.9622 481.1992 484.4112 481.8149 483.6203C482.0873 482.2132 480.7970 481.4569 479.9673 480.5816C479.4420 479.9917 478.6274 479.7907 478.1086 479.1986C477.2441 478.3989 476.5677 477.3591 475.4656 476.8622C474.3805 476.0084 473.5593 474.8156 472.3058 474.1781C470.9290 473.2033 470.0021 471.6862 468.5173 470.8562C467.4864 470.0177 466.6997 468.8722 465.5024 468.2477C464.4587 467.5949 463.7690 466.5186 462.7687 465.8119C461.4630 465.1529 460.7155 463.7999 459.5202 462.9983C458.2128 462.3520 457.4390 461.0293 456.2439 460.2339C454.6295 459.3759 453.7845 457.5563 452.1353 456.7479C451.1412 456.0304 450.4260 454.9802 449.3993 454.3036C448.1351 453.6856 447.4111 452.3953 446.2960 451.5871C444.8826 450.8997 444.1022 449.4044 442.7342 448.6609C441.6018 448.0319 440.8843 446.8952 439.8795 446.1129C438.7706 445.5119 437.9666 444.5093 437.1024 443.6186C427.5153 449.4368 416.4327 452.8276 405.2052 453.0654C387.4901 453.7006 369.6406 446.5471 357.3456 433.7660C344.8627 421.1770 338.2710 402.9494 340.0282 385.2839C341.3574 369.1636 349.6691 353.9424 362.0290 343.6055C371.3740 335.8165 382.9493 330.7076 395.0325 329.2163C398.5489 328.8144 402.0953 328.4124 405.6375 328.6933C415.6265 329.0865 425.5529 331.7168 434.3014 336.5773C437.8045 333.5323 440.8563 330.0094 444.2386 326.8304C447.4307 323.7593 450.3115 320.3079 453.8492 317.6410C461.6532 309.8735 469.4315 302.0848 477.2075 294.2915C475.9194 293.4941 474.7544 292.5235 473.4989 291.6785C451.5239 276.3451 424.3881 268.6944 397.6455 270.0062C372.4288 271.0545 347.6075 280.1401 327.7290 295.7049C321.7314 300.3687 316.1254 305.5535 311.1310 311.2807C294.4962 329.9272 283.9907 353.9273 281.5529 378.7940C279.3073 400.0904 283.0289 421.9506 292.0476 441.3645C304.9671 469.2872 328.9303 491.8371 357.5293 503.1510M80.5085 223.0631C86.8232 224.0549 93.2638 224.3684 99.6284 223.6833C110.1923 222.8751 120.8857 219.3868 128.8973 212.2549C133.4769 208.1897 136.8896 202.8430 138.6984 196.9948C139.8396 193.3209 140.3150 189.4652 140.3734 185.6271C131.0649 185.5837 121.7480 185.5990 112.4379 185.6075C111.9818 187.6584 111.4200 189.7180 110.3003 191.5183C108.4762 194.6781 105.3079 196.8523 101.9214 198.0558C98.1394 199.4003 94.0612 199.7266 90.0760 199.4930C85.5159 199.2078 80.8974 197.9804 77.1758 195.2422C72.0992 191.5832 69.4950 185.3827 68.9114 179.2990C68.2197 173.1030 69.0239 166.4940 72.3390 161.1040C74.4874 157.6179 77.7095 154.8105 81.4592 153.1593C87.6943 150.5271 94.8696 150.1013 101.3573 152.0487C104.8110 153.1140 108.0743 155.1932 110.0217 158.2965C111.3117 160.2351 111.8974 162.5131 112.4810 164.7326C112.5567 164.7649 112.7078 164.8256 112.7835 164.8559C118.4783 164.9271 124.1731 164.8559 129.8656 164.8817C133.3644 164.6093 136.8850 164.9032 140.3864 164.7522C140.3734 157.1037 138.1646 149.3688 133.5158 143.2310C129.1978 137.4477 123.0622 133.1728 116.3798 130.5490C109.4142 127.7569 101.8933 126.6157 94.4266 126.3759C86.2033 126.2398 77.8740 127.2620 70.1476 130.1774C63.4697 132.6694 57.3080 136.6393 52.4908 141.9103C47.7924 146.9891 44.4813 153.2761 42.6336 159.9262C41.0083 165.7225 40.4334 171.7824 40.6236 177.7904C41.0105 185.6962 42.8496 193.6449 46.7637 200.5758C49.9578 206.2814 54.4898 211.2197 59.8776 214.9197C66.0175 219.1643 73.1755 221.8031 80.5085 223.0631M195.8618 223.9319C207.0893 224.3554 218.6819 223.1991 228.9257 218.2782C235.5497 215.1230 241.4563 210.3466 245.6167 204.2736C251.0478 196.4200 253.5007 186.8156 253.7385 177.3496C254.0279 169.4030 252.9473 161.3157 249.8528 153.9527C247.3044 147.8083 243.3022 142.2434 238.1454 138.0246C232.4183 133.2159 225.4096 130.1321 218.1804 128.3837C210.5082 126.5769 202.5592 126.0539 194.7033 126.5508C187.1566 127.0264 179.5966 128.4701 172.6549 131.5389C166.9884 134.0155 161.7928 137.6357 157.6845 142.2734C150.8681 149.8484 147.4642 159.9650 146.7122 170.0101C146.0571 177.9202 146.8071 185.9964 149.3184 193.5456C151.4279 199.9103 155.0435 205.7930 159.8975 210.4330C165.7023 216.0629 173.1759 219.7585 180.9561 221.7793C185.8209 223.0889 190.8414 223.6575 195.8618 223.9319ZM197.8047 198.8600L197.8047 198.8600C192.9940 198.5445 188.0490 197.6539 183.9039 195.0562C181.0706 193.3512 178.7754 190.8074 177.2821 187.8639C175.1899 183.8441 174.5977 179.2363 174.5654 174.7604C174.6669 170.4705 175.3586 166.0725 177.4397 162.2625C179.2661 158.8238 182.2462 156.0229 185.7560 154.3501C190.0049 152.2908 194.7813 151.6791 199.4471 151.4976C204.9129 151.5212 210.5861 152.2128 215.4487 154.8777C218.6212 156.6130 221.2795 159.2952 222.9026 162.5326C225.0442 166.7577 225.7055 171.5856 225.5933 176.2778C225.4853 182.6683 223.4169 189.4567 218.3037 193.6148C212.5981 198.2245 204.8978 199.1322 197.8047 198.8600M746.4308 223.6876C751.1119 224.1740 755.8364 224.1740 760.5176 223.6833C767.4009 223.1753 774.2237 221.4899 780.4480 218.4834C787.4201 215.0926 793.6053 209.7479 797.1820 202.7911C800.0045 197.5436 801.1826 191.5571 801.2667 185.6378C791.9583 185.5772 782.6394 185.6010 773.3290 185.6098C772.6654 189.0632 771.1875 192.4951 768.4577 194.8141C764.1635 198.5335 758.2482 199.6336 752.7200 199.5579C747.9935 199.4868 743.1287 198.5335 739.1066 195.9401C736.2496 194.1744 733.9694 191.5529 732.4415 188.5748C730.2458 184.3345 729.5695 179.4849 729.5607 174.7604C729.6883 170.1703 730.6132 165.4889 732.9903 161.5059C735.9534 156.3429 741.2981 152.7792 747.0986 151.6229C752.2985 150.4341 757.8269 150.5597 762.9012 152.2647C766.0502 153.3583 768.9980 155.3250 770.8243 158.1625C772.1232 160.0795 772.7627 162.3359 773.3140 164.5597C773.3832 165.0461 773.9946 164.8148 774.3339 164.8774C783.3138 164.8449 792.2957 164.9897 801.2710 164.7607C801.1868 160.5249 800.6292 156.2649 799.1963 152.2604C797.0590 146.0707 793.0434 140.5791 787.8696 136.5789C781.9673 131.8997 774.7532 129.1249 767.4140 127.6770C757.2067 125.7511 746.5584 125.8875 736.4744 128.4506C725.6531 131.1888 715.5777 137.5946 709.3882 147.0002C705.6709 152.5782 703.3368 159.0140 702.2713 165.6164C700.8406 174.4319 701.3095 183.5974 704.0089 192.1300C705.9713 198.4170 709.3514 204.2717 713.8984 209.0412C722.2839 217.9627 734.3714 222.7215 746.4308 223.6876M263.4897 222.0970C263.5112 222.3456 263.4293 222.8187 263.8420 222.7260C276.5194 222.6654 289.1991 222.6654 301.8767 222.7323C308.4316 210.4396 314.8050 198.0473 321.3079 185.7243C322.6737 183.1374 323.9640 180.5029 325.4553 177.9851C325.5157 178.0347 325.6325 178.1342 325.6929 178.1838C332.9524 192.6184 340.1297 207.0961 347.3847 221.5352C347.7090 222.0755 347.9879 222.9443 348.7918 222.7949C361.3116 222.6243 373.8421 222.7065 386.3662 222.7022C386.3727 191.0322 386.4093 159.3598 386.3466 127.6897C377.2372 127.6877 368.1281 127.7028 359.0186 127.6855C359.0056 133.8687 358.8630 140.0519 358.9860 146.2329C358.9149 150.0494 358.8197 153.8725 359.0011 157.6851C359.0099 168.6767 359.0790 179.6664 359.0532 190.6560C358.2709 189.5624 357.8060 188.2831 357.1858 187.0946C349.9999 171.9618 342.7965 156.8378 335.5869 141.7158C335.4508 141.3984 335.0143 141.5452 334.7527 141.4933C328.5522 141.5540 322.3474 141.4933 316.1469 141.4998C315.6284 141.4134 315.4728 141.9925 315.2611 142.3318C307.6730 157.8404 300.0268 173.3190 292.4323 188.8234C291.8942 189.8133 291.5203 190.8873 290.9064 191.8318C290.8006 170.4512 290.9044 149.0683 290.8244 127.6855C281.7150 127.7050 272.6056 127.6943 263.4982 127.6855C263.4508 131.9236 263.4616 136.1616 263.4639 140.3977C263.2606 148.7529 263.6172 157.1100 263.4009 165.4673C263.4205 184.3432 263.3102 203.2211 263.4897 222.0970M399.3678 222.7626C417.8806 222.6438 436.3954 222.7411 454.9082 222.7022C456.9248 222.8686 458.9410 222.6719 460.9596 222.6869C467.3934 222.5443 473.9309 220.8263 479.1569 216.9598C483.3213 213.9795 486.4703 209.6960 488.3528 204.9545C490.3410 199.9817 491.0800 194.5721 490.9762 189.2384C490.8920 182.0503 489.1113 174.7604 485.1887 168.6810C481.7849 163.3666 476.6477 159.1503 470.6850 157.0388C466.6175 155.5455 462.2477 155.0353 457.9319 155.1348C447.7416 155.1325 437.5497 155.2450 427.3617 155.0741C427.2948 145.9454 427.3617 136.8122 427.2905 127.6835C417.9844 127.6985 408.6782 127.7116 399.3744 127.6662C399.3029 159.3643 399.3117 191.0645 399.3678 222.7626ZM427.3532 198.2245L427.3532 198.2245C427.2883 191.5682 427.3639 184.9116 427.3251 178.2553C433.7804 178.1147 440.2403 178.1796 446.6979 178.1643C449.4382 178.1969 452.2090 178.0586 454.9105 178.6204C457.7306 179.1391 460.5534 180.6931 461.8695 183.3403C463.7951 187.1138 463.3543 192.2077 460.2917 195.2637C457.7825 197.6539 454.1519 198.3067 450.8019 198.2679C442.9871 198.1942 435.1657 198.3759 427.3532 198.2245M500.5395 222.7734C518.6806 222.6285 536.8280 222.7476 554.9734 222.7022C558.3838 222.6719 561.8092 222.8253 565.2045 222.4083C572.3385 221.7793 579.4489 219.3242 585.0009 214.7122C590.2115 210.4591 593.5592 204.0987 594.3393 197.4356C595.5001 189.2296 593.3129 180.2974 587.4755 174.2397C584.4325 171.0238 580.4280 168.8757 576.1942 167.6784C580.4864 165.2944 584.1777 161.7437 586.3799 157.3262C591.1948 147.4560 595.9494 137.5557 600.7861 127.6963C590.7195 127.7116 580.6505 127.6574 570.5858 127.7093C566.3282 136.1789 562.3648 144.7999 558.1740 153.3064C557.3767 154.8150 556.4733 156.3364 555.0922 157.3824C552.2221 159.5242 548.4682 159.6192 545.0363 159.7337C539.5275 159.7963 534.0144 159.8074 528.5075 159.7425C528.4298 149.0576 528.5140 138.3681 528.4341 127.6835C519.1302 127.7116 509.8283 127.7008 500.5244 127.6770C500.4207 156.7687 500.5179 185.8646 500.4879 214.9566C500.5332 217.5627 500.3949 220.1734 500.5395 222.7734ZM528.4967 198.2245L528.4967 198.2245C528.4298 192.0025 528.5098 185.7762 528.4687 179.5541C536.0760 179.3985 543.6876 179.4784 551.2952 179.4589C555.7017 179.4677 560.8020 179.3186 564.2189 182.5860C567.5017 185.9814 567.4802 192.0263 564.0829 195.3371C561.4894 197.6301 557.9019 198.3002 554.5389 198.2679C545.8598 198.1964 537.1739 198.3779 528.4967 198.2245M610.3151 222.7584C638.3109 222.5942 666.3093 222.7496 694.3051 222.6804C694.3895 214.7964 694.2858 206.9082 694.3139 199.0219C675.6389 198.9400 656.9620 199.0675 638.2851 198.9527C638.2052 194.8791 638.2979 190.8051 638.2763 186.7314C653.7461 186.4894 669.2182 186.6515 684.6857 186.6858C684.7787 186.2515 684.8048 185.8042 684.8048 185.3524C684.8198 178.8171 684.8090 172.2815 684.8090 165.7463C669.3004 165.6748 653.7872 165.8047 638.2786 165.6771C638.2071 160.9461 638.2959 156.2153 638.2701 151.4846C656.9447 151.2490 675.6262 151.4628 694.3031 151.3570C694.3742 143.4730 694.3269 135.5845 694.3289 127.7008C666.3266 127.6747 638.3197 127.7223 610.3151 127.6770C610.2048 155.4718 610.3020 183.2712 610.2675 211.0663C610.3020 214.9651 610.2048 218.8638 610.3151 222.7584M98.5671 88.1175C98.5671 84.7653 96.7411 83.0886 93.0784 83.0801C89.4161 83.0801 87.5852 84.7565 87.5852 88.1175L87.5852 103.9422C87.5852 107.2950 89.4161 108.9711 93.0784 108.9711C96.7411 108.9711 98.5671 107.2950 98.5671 103.9422L98.5671 100.8505L95.3181 100.8505L95.3181 103.9422C95.3181 105.3624 94.5731 106.0747 93.0929 106.0832L93.0643 106.0832C91.5792 106.0832 90.8391 105.3666 90.8391 103.9422L90.8391 88.1175C90.8391 86.6931 91.5840 85.9810 93.0784 85.9810C94.5683 85.9810 95.3181 86.6931 95.3181 88.1175L95.3181 94.5797L93.2323 94.5797L93.2323 97.4803L98.5671 97.4803ZZM743.2923 103.9422C743.2923 107.2950 745.1235 108.9711 748.7858 108.9711C752.4482 108.9711 754.2746 107.2950 754.2746 103.9422L754.2746 100.8505L751.0255 100.8505L751.0255 103.9422C751.0255 105.3624 750.2805 106.0747 748.8003 106.0832L748.7714 106.0832C747.2863 106.0832 746.5462 105.3666 746.5462 103.9422L746.5462 101.5886C746.5462 100.3073 747.8966 98.7965 750.6023 97.0464C753.0537 95.4609 754.2746 93.5765 754.2746 91.3876L754.2746 88.1175C754.2746 84.7565 752.4530 83.0801 748.8003 83.0801C745.1283 83.0886 743.2923 84.7653 743.2923 88.1175L743.2923 91.2095L746.5462 91.2095L746.5462 88.1175C746.5462 86.6931 747.2959 85.9810 748.8003 85.9810C750.2805 85.9810 751.0255 86.6931 751.0255 88.1175L751.0255 91.0664C751.0255 92.4517 749.6702 94.0150 746.9691 95.7651C744.5180 97.3502 743.2923 99.2650 743.2923 101.5149ZZM722.5064 108.5630L725.7555 108.5630L725.7555 83.4968L722.5064 83.4968ZZM704.4857 92.2258L705.7786 83.4968L702.4717 83.4968L701.6692 88.9818L696.6995 88.9818L695.8826 83.4968L692.6000 83.4968L693.8688 92.1739L696.7284 108.5630L701.6403 108.5630ZZM701.2463 91.8825L699.1750 106.0441L697.1083 91.8825ZZM672.7796 108.5630L676.0287 108.5630L676.0287 83.4968L672.7796 83.4968ZZM654.8477 88.1175C654.8477 84.7653 653.0216 83.0886 649.3592 83.0801C645.6969 83.0801 643.8657 84.7565 643.8657 88.1175L643.8657 103.9422C643.8657 107.2950 645.6969 108.9711 649.3592 108.9711C653.0216 108.9711 654.8477 107.2950 654.8477 103.9422L654.8477 100.8505L651.5989 100.8505L651.5989 103.9422C651.5989 105.3624 650.8539 106.0747 649.3737 106.0832L649.3448 106.0832C647.8597 106.0832 647.1196 105.3666 647.1196 103.9422L647.1196 88.1175C647.1196 86.6931 647.8645 85.9810 649.3592 85.9810C650.8491 85.9810 651.5989 86.6931 651.5989 88.1175L651.5989 91.2095L654.8477 91.2095ZZM623.1214 108.5630L626.3705 108.5630L626.3705 83.4968L623.1214 83.4968ZZM594.4306 108.5630L600.3567 108.5630C603.7257 108.5542 605.4129 106.8695 605.4129 103.5125L605.4129 88.5345C605.4129 85.1862 603.6347 83.5055 600.0780 83.4968L594.4306 83.4968ZZM597.6845 105.6750L597.6845 86.3850L599.9338 86.3850C601.4188 86.3850 602.1590 87.1013 602.1590 88.5345L602.1590 103.5125C602.1590 104.9542 601.4188 105.6750 599.9338 105.6750ZZM576.3668 88.1306C576.3668 84.7695 574.5359 83.0886 570.8738 83.0801C567.2115 83.0801 565.3851 84.7607 565.3851 88.1306L565.3851 108.5760L568.6339 108.5760L568.6339 88.1306C568.6339 86.6974 569.3837 85.9810 570.8738 85.9810C572.3685 85.9810 573.1135 86.6974 573.1135 88.1306L573.1135 108.5760L576.3668 108.5760ZZM536.9111 89.2599L540.1650 89.2599L540.1650 88.1306C540.1650 86.6974 540.9147 85.9810 542.4143 85.9810C543.8993 85.9810 544.6395 86.6974 544.6395 88.1306L544.6395 108.5760L547.8934 108.5760L547.8934 88.1306C547.8934 84.7607 546.0667 83.0801 542.4143 83.0801C538.7471 83.0886 536.9111 84.7695 536.9111 88.1306ZZM366.0486 92.2258L367.3417 83.4968L364.0348 83.4968L363.2321 88.9818L358.2626 88.9818L357.4457 83.4968L354.1632 83.4968L355.4317 92.1739L358.2916 108.5630L363.2034 108.5630ZZM362.8091 91.8825L360.7379 106.0441L358.6711 91.8825ZZM393.4168 108.5630L393.4168 105.6750L389.5577 105.6750L389.5577 83.4968L386.3038 83.4968L386.3038 105.6750L382.4348 105.6750L382.4348 108.5630ZZM410.2790 108.5630L413.5280 108.5630L413.5280 83.4968L410.2790 83.4968ZZM439.2910 83.4968L434.3791 83.4968L431.5192 99.8603L430.2507 108.5630L433.5333 108.5630L436.8254 86.0156L440.1224 108.5630L443.4293 108.5630L442.1361 99.8342ZZM470.7831 88.1175C470.7831 84.7653 468.9567 83.0886 465.2943 83.0801C461.6320 83.0801 459.8008 84.7565 459.8008 88.1175L459.8008 103.9422C459.8008 107.2950 461.6320 108.9711 465.2943 108.9711C468.9567 108.9711 470.7831 107.2950 470.7831 103.9422ZZM467.5340 103.9422C467.5340 105.3624 466.7890 106.0747 465.3088 106.0832L465.2799 106.0832C463.7948 106.0832 463.0547 105.3666 463.0547 103.9422L463.0547 88.1175C463.0547 86.6931 463.7996 85.9810 465.2943 85.9810C466.7842 85.9810 467.5340 86.6931 467.5340 88.1175ZZM487.8519 103.9422C487.8519 107.2950 489.6828 108.9711 493.3451 108.9711C497.0078 108.9711 498.8339 107.2950 498.8339 103.9422L498.8339 100.8505L495.5848 100.8505L495.5848 103.9422C495.5848 105.3624 494.8398 106.0747 493.3596 106.0832L493.3310 106.0832C491.8459 106.0832 491.1058 105.3666 491.1058 103.9422L491.1058 101.5886C491.1058 100.3073 492.4559 98.7965 495.1619 97.0464C497.6133 95.4609 498.8339 93.5765 498.8339 91.3876L498.8339 88.1175C498.8339 84.7565 497.0126 83.0801 493.3596 83.0801C489.6876 83.0886 487.8519 84.7653 487.8519 88.1175L487.8519 91.2095L491.1058 91.2095L491.1058 88.1175C491.1058 86.6931 491.8555 85.9810 493.3596 85.9810C494.8398 85.9810 495.5848 86.6931 495.5848 88.1175L495.5848 91.0664C495.5848 92.4517 494.2298 94.0150 491.5287 95.7651C489.0773 97.3502 487.8519 99.2650 487.8519 101.5149ZZM278.4759 108.5630L284.4017 108.5630C287.7710 108.5542 289.4579 106.8695 289.4579 103.5125L289.4579 88.5345C289.4579 85.1862 287.6797 83.5055 284.1231 83.4968L278.4759 83.4968ZZM281.7298 105.6750L281.7298 86.3850L283.9788 86.3850C285.4638 86.3850 286.2040 87.1013 286.2040 88.5345L286.2040 103.5125C286.2040 104.9542 285.4638 105.6750 283.9788 105.6750ZZM316.0043 97.4803L316.0043 94.5797L310.3475 94.5797L310.3475 86.3850L316.9225 86.3850L316.9225 83.4968L307.0936 83.4968L307.0936 108.5630L316.9225 108.5630L316.9225 105.6750L310.3475 105.6750L310.3475 97.4803ZZM125.1184 97.4803L125.1184 94.5797L119.4616 94.5797L119.4616 86.3850L126.0366 86.3850L126.0366 83.4968L116.2077 83.4968L116.2077 108.5630L126.0366 108.5630L126.0366 105.6750L119.4616 105.6750L119.4616 97.4803ZZM142.9656 103.9422C142.9656 107.2950 144.7968 108.9711 148.4592 108.9711C152.1215 108.9711 153.9479 107.2950 153.9479 103.9422L153.9479 100.8505L150.6988 100.8505L150.6988 103.9422C150.6988 105.3624 149.9539 106.0747 148.4736 106.0832L148.4447 106.0832C146.9597 106.0832 146.2195 105.3666 146.2195 103.9422L146.2195 101.5886C146.2195 100.3073 147.5700 98.7965 150.2759 97.0464C152.7270 95.4609 153.9479 93.5765 153.9479 91.3876L153.9479 88.1175C153.9479 84.7565 152.1264 83.0801 148.4736 83.0801C144.8016 83.0886 142.9656 84.7653 142.9656 88.1175L142.9656 91.2095L146.2195 91.2095L146.2195 88.1175C146.2195 86.6931 146.9693 85.9810 148.4736 85.9810C149.9539 85.9810 150.6988 86.6931 150.6988 88.1175L150.6988 91.0664C150.6988 92.4517 149.3436 94.0150 146.6427 95.7651C144.1913 97.3502 142.9656 99.2650 142.9656 101.5149ZZM181.4460 108.5630L181.4460 105.6750L177.5866 105.6750L177.5866 83.4968L174.3327 83.4968L174.3327 105.6750L170.4640 105.6750L170.4640 108.5630ZZM209.1314 92.2258L210.4291 83.4968L207.1179 83.4968L206.3200 88.9818L201.3454 88.9818L200.5282 83.4968L197.2508 83.4968L198.5196 92.1739L201.3744 108.5630L206.2911 108.5630ZZM205.8970 91.8825L203.8255 106.0441L201.7539 91.8825ZZM200.6294 109.5401L199.4037 110.1393L199.7257 110.7258C200.3026 111.7766 201.0186 112.3237 201.8837 112.3671L201.9657 112.3671C202.5374 112.3671 203.3065 112.0980 204.2629 111.5637C204.8346 111.2338 205.3250 111.0688 205.7287 111.0688C206.1468 111.0688 206.4832 111.2338 206.7284 111.5637L207.0938 112.0980L208.2617 111.3987L207.8821 110.8383C207.3339 110.0526 206.6854 109.6401 205.9211 109.6053L205.8392 109.6053C205.2768 109.6053 204.5222 109.8788 203.5709 110.4216C202.8881 110.8083 202.4416 111.0166 202.2347 111.0427L202.1338 111.0427C201.6867 111.0427 201.2876 110.7343 200.9370 110.1135ZZM239.0182 88.1175C239.0182 84.7653 237.1918 83.0886 233.5294 83.0801C229.8671 83.0801 228.0362 84.7565 228.0362 88.1175L228.0362 103.9422C228.0362 107.2950 229.8671 108.9711 233.5294 108.9711C237.1918 108.9711 239.0182 107.2950 239.0182 103.9422ZZM235.7691 103.9422C235.7691 105.3624 235.0242 106.0747 233.5439 106.0832L233.5150 106.0832C232.0299 106.0832 231.2901 105.3666 231.2901 103.9422L231.2901 88.1175C231.2901 86.6931 232.0347 85.9810 233.5294 85.9810C235.0193 85.9810 235.7691 86.6931 235.7691 88.1175Z"/>
+        <path fill="#fff" d="M457.0631 443.4069C471.9815 455.0428 486.8461 466.7564 501.3933 478.8527C510.9262 466.8279 519.3462 453.8412 525.7023 439.8474C530.1760 429.9384 533.5775 419.5193 535.4623 408.7998C537.3187 398.1949 537.6926 387.3240 536.4349 376.6263C534.4248 358.9390 527.6948 341.9802 518.0496 327.0898C512.9124 319.2293 507.0708 311.8079 500.4230 305.1689C497.3950 302.1452 494.3435 299.1325 490.9873 296.4722C477.9380 310.0725 465.1089 323.8934 452.0750 337.5088C452.5591 338.3042 453.3154 338.8680 453.9467 339.5404C459.8683 345.5895 465.0508 352.3842 469.1052 359.8251C473.3323 367.8021 476.1765 376.5830 476.8444 385.6124C477.7455 396.4703 475.7831 407.4837 471.6618 417.5484C468.0224 426.5906 462.8571 435.0280 456.5205 442.4323C456.2461 442.8601 456.7864 443.1671 457.0631 443.4069M445.1939 428.9012C445.9674 429.4695 446.6288 430.1935 447.4803 430.6538C453.3780 423.0400 458.5456 414.7064 461.5106 405.4910C463.9657 397.8082 465.0335 389.5826 463.8317 381.5668C461.9645 367.8693 454.4113 355.4033 444.2990 346.1709C443.6700 345.6587 443.0823 345.0988 442.4165 344.6408C437.4244 349.8922 432.4578 355.1700 427.4504 360.4065C428.4122 361.6038 429.5358 362.6606 430.4738 363.8775C435.0643 369.5766 438.1591 376.4965 439.2136 383.7453C440.2208 390.7627 439.4903 398.0546 436.9294 404.6805C435.2740 409.0246 432.7367 412.9753 429.8363 416.5889C434.9735 420.6691 440.1366 424.7192 445.1939 428.9012"/>
+      </g>
     </svg>
     <div class="marca-txt">
-      <strong>Monitor de Leilões Imobiliários</strong>
+      <strong class="marca-nome">COMPREC</strong>
+      <span class="marca-sub">Monitor de Leilões Imobiliários</span>
       <span id="resumo-topo"></span>
     </div>
   </div>
   <div class="topo-acoes">
-    <button class="btn btn-ico" id="btn-tema" title="Alternar tema">🌙</button>
-    <button class="btn btn-p" id="btn-novo">+ Novo imóvel</button>
+    <button class="btn-topo" id="btn-selecao" title="Imóveis selecionados" hidden>
+      <span class="pino" id="pino-sel">0</span> selecionados
+    </button>
+    <button class="btn-topo ico" id="btn-tema" title="Alternar tema">🌙</button>
+    <button class="btn-topo destaque" id="btn-novo">+ Novo imóvel</button>
+    <button class="perfil-botao" id="btn-perfil" title="Meu perfil">
+      <span class="perfil-avatar" id="avatar-topo">?</span>
+      <span class="perfil-nome" id="nome-topo">Entrar</span>
+    </button>
   </div>
 </header>
+
+<div class="tarja-teste" id="tarja-teste" hidden>
+  <!-- Frasco de laboratório -->
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M9 3h6M10 3v6.5L4.6 18.4A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-2.6L14 9.5V3"/>
+    <path d="M7.2 15h9.6"/>
+  </svg>
+  AMBIENTE DE TESTE — os dados na tela são fictícios. Seus dados reais estão guardados e voltam ao sair.
+</div>
 
 <nav class="abas">
   <button class="aba ativa" data-p="painel">Painel</button>
@@ -564,10 +709,13 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
     <button class="sel-btn" id="sel-aplicar-etapa">Mover</button>
   </div>
 
-  <button class="sel-btn solto" id="sel-lidas">✓ Marcar lidas</button>
+  <div class="sel-grupo">
+    <button class="sel-btn" id="sel-lidas">✓ Lidas</button>
+    <button class="sel-btn" id="sel-nao-lidas">◔ Não lidas</button>
+  </div>
 
   <div class="sel-div"></div>
-  <button class="sel-fechar" id="sel-limpar" title="Limpar seleção">✕</button>
+  <button class="sel-fechar" id="sel-limpar" title="Limpar seleção (Esc)">✕</button>
 </div>
 
 <!-- ============ FICHA DO IMÓVEL (aberta ao clicar numa linha) ============ -->
@@ -782,9 +930,23 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   </div>
 
   <div class="caixa">
-    <h3>Dados de demonstração</h3>
-    <p>Carrega alguns registros de exemplo para você testar filtros, etapas e timeline. Não sobrescreve o que já existe.</p>
-    <button class="btn" id="btn-demo">Carregar exemplos</button>
+    <h3>Ambiente de teste</h3>
+    <p>
+      Cria uma base fictícia grande — dezenas de imóveis em vários estados, com
+      datas, etapas, ocupantes e arrematadores variados — para você experimentar
+      mudanças, filtros e ordenações sem tocar nos dados reais.
+    </p>
+    <div class="aviso-box">
+      <strong>Isto é um interruptor, não um botão de carga.</strong> Ao entrar em modo
+      de teste, seus dados reais são guardados de lado e a tela passa a mostrar só o
+      fictício — com uma tarja no topo para você não confundir. Ao sair, o fictício é
+      descartado e os dados reais voltam exatamente como estavam.
+    </div>
+    <div class="acoes-barra">
+      <button class="btn btn-p" id="btn-teste-entrar">Entrar no modo de teste</button>
+      <button class="btn" id="btn-teste-sair" hidden>Sair e restaurar meus dados</button>
+    </div>
+    <div class="resultado" id="res-teste" hidden></div>
   </div>
 
   <div class="caixa">
@@ -810,6 +972,11 @@ const CHAVE_BACKUP = 'leiloes_ultimo_backup';
 const CHAVE_RGI = 'leiloes_padrao_rgi';
 const CHAVE_PISCAR = 'leiloes_piscar';
 const CHAVE_LEMIT = 'leiloes_padrao_lemit';
+const CHAVE_REAL = 'leiloes_dados_reais';
+const CHAVE_MODO = 'leiloes_modo';
+const CHAVE_PERFIL = 'leiloes_perfil';
+const CHAVE_USUARIOS = 'leiloes_usuarios';
+const CHAVE_LOGS = 'leiloes_logs';
 const CHAVE_SYNC = 'leiloes_sync_cfg';
 const CHAVE_ORFAOS = 'leiloes_orfaos';
 const DIAS_LEMBRETE = 14;
@@ -1081,9 +1248,18 @@ function normalizar(r, anterior, preservarVazios) {
   };
 }
 
+// Suspende o registro por ação durante operações em massa — senão importar
+// 8.000 imóveis geraria 8.000 linhas de log e distorceria o ranking.
+let logEmMassa = false;
+
 function log(reg, texto) {
   reg.historico = reg.historico || [];
   reg.historico.unshift({ em: new Date().toISOString(), texto });
+  // Toda ação sobre um imóvel também alimenta o registro de atividade — é daí
+  // que o ranking tira os números.
+  if (!logEmMassa && typeof registrar === 'function') {
+    registrar(texto, reg.endereco || reg.codigoFonte || '');
+  }
   reg.historico = reg.historico.slice(0, 40);
 }
 
@@ -1205,6 +1381,12 @@ function prazoLeilao(r) {
   return { d, nivel: d < 7 ? 7 : d < 15 ? 15 : d < 30 ? 30 : 0 };
 }
 
+/** Pinta de ciano todo filtro que está de fato limitando a lista. */
+function marcarFiltrosAtivos() {
+  $$('.filtros select, .filtros input, #busca').forEach(el =>
+    el.classList.toggle('filtro-ativo', !!el.value));
+}
+
 /** Marca no cabeçalho qual coluna ordena e em que sentido. */
 function atualizarSetas() {
   $$('th[data-ord]').forEach(th => {
@@ -1232,6 +1414,7 @@ function render() {
   // Redesenhar as seis abas a cada tecla digitada era o maior custo com
   // milhares de imóveis. Agora só a aba visível é recalculada; as outras
   // são refeitas quando você troca de aba.
+  marcarFiltrosAtivos();
   const aba = abaAtiva();
   renderBarraSel();   // fora do if: precisa sumir ao trocar de aba
   if (aba === 'painel') { renderKpis(); renderTabela(); }
@@ -1306,6 +1489,14 @@ function renderBarraSel() {
       ? 'imóvel selecionado' : 'imóveis selecionados';
   }
 
+  // Atalho no topo. Fica aqui, e não em render(), porque marcar uma caixa
+  // atualiza só esta função — era por isso que o atalho não aparecia.
+  const atalho = $('#btn-selecao');
+  if (atalho) {
+    atalho.hidden = selecionados.size === 0;
+    if (selecionados.size) $('#pino-sel').textContent = selecionados.size;
+  }
+
   const todos = $('#sel-todos');
   if (todos) {
     const visiveisSel = visiveis.filter(r => selecionados.has(r.id)).length;
@@ -1321,11 +1512,14 @@ function renderBarraSel() {
 /** Aplica uma alteração a todos os selecionados, de uma vez. */
 function aplicarEmLote(fn, descricao) {
   let n = 0;
+  logEmMassa = true;                 // uma linha de registro, não N
   dados.forEach(r => {
     if (!selecionados.has(r.id)) return;
     fn(r); log(r, descricao); n++;
   });
+  logEmMassa = false;
   if (!n) return;
+  registrar(descricao, `${n} imóveis em lote`);
   salvar(); popularSelects(); render();
   toast(`${descricao} — ${n} imóvel(is).`);
 }
@@ -1543,6 +1737,180 @@ function fecharModal() {
   $('#overlay')?.remove();
   editando = null;
   perfilAberto = null;
+}
+
+/* ==================== perfil e registro de atividade ==================== */
+// Operadores cadastrados. Identificação, não autenticação: o login por 4
+// dígitos diz QUEM está usando, para o registro de atividade e o ranking.
+// Não há senha porque, rodando só no navegador, ela não protegeria nada.
+let usuarios = [];
+let perfil = { id: '', nome: '', cargo: '', foto: '' };
+let logs = [];
+
+function carregarPerfil() {
+  try {
+    usuarios = JSON.parse(localStorage.getItem(CHAVE_USUARIOS) || '[]');
+    const ativo = localStorage.getItem(CHAVE_PERFIL) || '';
+    perfil = usuarios.find(u => u.id === ativo) || { id: '', nome: '', cargo: '', foto: '' };
+    logs = JSON.parse(localStorage.getItem(CHAVE_LOGS) || '[]');
+  } catch (e) {}
+  if (!Array.isArray(usuarios)) usuarios = [];
+  aplicarPerfilNoTopo();
+}
+
+function salvarUsuarios() {
+  try {
+    localStorage.setItem(CHAVE_USUARIOS, JSON.stringify(usuarios));
+    localStorage.setItem(CHAVE_PERFIL, perfil.id || '');
+  } catch (e) { toast('Sem espaço para salvar o perfil.', true); }
+}
+
+function entrarComo(id) {
+  const u = usuarios.find(x => x.id === id);
+  if (!u) return;
+  perfil = u;
+  salvarUsuarios();
+  registrar('Entrou no sistema');
+  aplicarPerfilNoTopo();
+  fecharModal();
+  toast(`Olá, ${u.nome.split(' ')[0]}.`);
+}
+
+function sairDoPerfil() {
+  registrar('Saiu do sistema');
+  perfil = { id: '', nome: '', cargo: '', foto: '' };
+  try { localStorage.removeItem(CHAVE_PERFIL); } catch (e) {}
+  aplicarPerfilNoTopo();
+  fecharModal();
+  toast('Sessão encerrada.');
+}
+
+function aplicarPerfilNoTopo() {
+  const av = $('#avatar-topo'), nm = $('#nome-topo');
+  if (!av || !nm) return;
+  nm.textContent = perfil.nome || 'Entrar';
+  if (perfil.foto) {
+    av.style.backgroundImage = `url("${perfil.foto}")`;
+    av.textContent = '';
+  } else {
+    av.style.backgroundImage = '';
+    av.textContent = (perfil.nome || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+}
+
+/** Registro do que foi feito, com autor e horário. */
+function registrar(acao, detalhe) {
+  logs.unshift({
+    em: new Date().toISOString(),
+    quem: perfil.nome || 'sem identificação',
+    acao, detalhe: detalhe || '',
+  });
+  logs = logs.slice(0, 1000);         // teto para não estourar o armazenamento
+  try { localStorage.setItem(CHAVE_LOGS, JSON.stringify(logs)); } catch (e) {}
+
+  // Se o painel de perfil estiver aberto, o ranking se atualiza na hora.
+  const g = $('#grafico-equipe');
+  if (g) g.innerHTML = graficoEquipe();
+}
+
+/* ==================== modo de teste ==================== */
+// Guarda os dados reais de lado e trabalha sobre uma base fictícia. Sair
+// devolve tudo como estava — por isso é interruptor, e não "carregar exemplos"
+// misturado ao que é real.
+let modoTeste = false;
+
+const CIDADES_TESTE = [
+  ['Rio de Janeiro','RJ','Copacabana'], ['Rio de Janeiro','RJ','Tijuca'],
+  ['Niterói','RJ','Icaraí'], ['São Paulo','SP','Pinheiros'],
+  ['São Paulo','SP','Santana'], ['Campinas','SP','Cambuí'],
+  ['Belo Horizonte','MG','Savassi'], ['Contagem','MG','Eldorado'],
+  ['Curitiba','PR','Batel'], ['Porto Alegre','RS','Moinhos'],
+  ['Salvador','BA','Pituba'], ['Recife','PE','Boa Viagem'],
+  ['Fortaleza','CE','Meireles'], ['Goiânia','GO','Setor Bueno'],
+];
+const NOMES_PJ = ['Vale Verde Incorporadora Ltda','Fundo Atlântico FII',
+  'Construtora Horizonte S/A','RM Participações Ltda','Sétima Securitizadora S/A'];
+
+function gerarBaseTeste() {
+  const dt = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const etapas = Object.keys(ETAPAS);
+  const ocups = Object.keys(OCUPACAO);
+  const mods = ['Venda Direta Online','Leilão SFI - Edital Único','Licitação Aberta','Venda Online'];
+  const out = [];
+  for (let i = 0; i < 60; i++) {
+    const [cid, uf, bairro] = CIDADES_TESTE[i % CIDADES_TESTE.length];
+    const aval = 120000 + (i * 37000) % 900000;
+    const desc = 0.30 + ((i * 7) % 45) / 100;
+    const arrematado = i % 7 === 0;
+    // Distribui prazos para exercitar o semáforo: vencidos, urgentes, médios e longos.
+    const prazo = [-9, 2, 5, 11, 19, 26, 44, 70, null, null][i % 10];
+    out.push({
+      codigoFonte: 'TESTE' + String(i).padStart(4, '0'),
+      endereco: `Rua de Teste ${100 + i}, nº ${10 + i}`,
+      bairro, municipio: cid, estado: uf,
+      valorAvaliacao: aval,
+      valorMinimo: Math.round(aval * (1 - desc)),
+      valorLance: arrematado ? Math.round(aval * (1 - desc) * 1.08) : null,
+      dataLeilao: prazo === null ? '' : dt(prazo),
+      status: arrematado ? 'arrematado' : (i % 11 === 0 ? 'suspenso' : 'agendado'),
+      etapa: etapas[i % etapas.length],
+      ocupacao: ocups[i % ocups.length],
+      arrematador: arrematado ? NOMES_PJ[i % NOMES_PJ.length] : '',
+      financiavel: i % 9 === 0,
+      fonte: 'Caixa — ' + mods[i % mods.length],
+      link: 'https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnimovel=TESTE' + i,
+      notas: i % 5 === 0 ? 'Anotação fictícia para conferir a coluna de notas.' : '',
+      lida: i % 3 === 0,
+    });
+  }
+  return out;
+}
+
+function entrarModoTeste() {
+  if (modoTeste) return;
+  try {
+    localStorage.setItem(CHAVE_REAL, JSON.stringify({ dados, perfis, orfaos }));
+    localStorage.setItem(CHAVE_MODO, 'teste');
+  } catch (e) { toast('Sem espaço para guardar seus dados. Exporte um backup antes.', true); return; }
+
+  modoTeste = true;
+  dados = gerarBaseTeste().map(r => normalizar(r));
+  perfis = []; orfaos = {}; selecionados.clear();
+  sincronizarPerfis();
+  salvar(); popularSelects(); render(); atualizarTarjaTeste();
+  toast('Ambiente de teste ativo. Seus dados reais estão guardados.');
+}
+
+function sairModoTeste() {
+  if (!modoTeste) return;
+  if (!confirm('Sair do modo de teste?\n\nA base fictícia será descartada e seus dados reais voltam.')) return;
+  let guardado = null;
+  try { guardado = JSON.parse(localStorage.getItem(CHAVE_REAL) || 'null'); } catch (e) {}
+  if (!guardado) { toast('Não encontrei os dados guardados. Nada foi apagado — restaure um backup.', true); return; }
+
+  modoTeste = false;
+  dados = (guardado.dados || []).map(r => normalizar(r));
+  perfis = guardado.perfis || [];
+  orfaos = guardado.orfaos || {};
+  selecionados.clear();
+  try { localStorage.removeItem(CHAVE_REAL); localStorage.removeItem(CHAVE_MODO); } catch (e) {}
+  salvar(); popularSelects(); render(); atualizarTarjaTeste();
+  toast('De volta aos seus dados reais.');
+}
+
+function atualizarTarjaTeste() {
+  const tarja = $('#tarja-teste');
+  if (tarja) tarja.hidden = !modoTeste;
+  const ent = $('#btn-teste-entrar'), sai = $('#btn-teste-sair'), res = $('#res-teste');
+  if (ent) ent.hidden = modoTeste;
+  if (sai) sai.hidden = !modoTeste;
+  if (res) {
+    res.hidden = !modoTeste;
+    if (modoTeste) res.innerHTML = `<strong>Ambiente de teste ativo.</strong> ${dados.length} imóveis fictícios. `
+      + 'Seus dados reais estão guardados e voltam ao sair.';
+  }
+  // A sincronização fica suspensa: base fictícia não pode subir para o GitHub.
+  document.documentElement.classList.toggle('em-teste', modoTeste);
 }
 
 /* ==================== ficha do imóvel ==================== */
@@ -1765,6 +2133,242 @@ function ligarFicha(r) {
     log(r, 'Anotações atualizadas');
     redesenhar();
     toast('Anotações salvas.');
+  });
+}
+
+/* ---------- painel do perfil ---------- */
+/** Quantas ações de um tipo a pessoa logada registrou. */
+function contarPor(tipo) {
+  const meu = perfil.nome || 'sem identificação';
+  const chaves = {
+    cadastrou: /criado manualmente|importou imóveis|importado em lote/i,
+    consultou: /marcado como lido/i,
+  };
+  const re = chaves[tipo];
+  if (!re) return 0;
+  return logs.filter(l => l.quem === meu && re.test(l.acao)).length;
+}
+
+/** Ranking por pessoa — barras proporcionais, sem biblioteca externa. */
+function graficoEquipe() {
+  const porPessoa = {};
+  logs.forEach(l => { porPessoa[l.quem] = (porPessoa[l.quem] || 0) + 1; });
+  const lista = Object.entries(porPessoa).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!lista.length) return '<p class="ficha-vazio">Nenhuma atividade registrada ainda.</p>';
+
+  const maior = lista[0][1];
+  const medalhas = ['🥇', '🥈', '🥉'];
+  return `<div class="grafico">${lista.map(([quem, n], i) => `
+    <div class="g-linha ${quem === (perfil.nome || 'sem identificação') ? 'eu' : ''}">
+      <span class="g-pos">${medalhas[i] || (i + 1) + 'º'}</span>
+      <span class="g-nome">${esc(quem)}</span>
+      <span class="g-barra"><span style="width:${Math.max(4, (n / maior) * 100)}%"></span></span>
+      <span class="g-num">${n}</span>
+    </div>`).join('')}</div>`;
+}
+
+/** Detalhe aberto ao clicar num dos números do perfil. */
+function detalharPerfil(qual) {
+  const alvo = $('#pu-detalhe');
+  if (!alvo) return;
+  const meu = perfil.nome || 'sem identificação';
+  const item = (t, s) => `<li>${esc(t)}${s ? ` <span class="end-s">${esc(s)}</span>` : ''}</li>`;
+  let titulo = '', corpo = '';
+
+  if (qual === 'tarefas') {
+    titulo = 'Tarefas em aberto';
+    const abertas = [];
+    dados.forEach(r => (r.tarefas || []).forEach(t => {
+      if (!t.feita) abertas.push({ r, t, atraso: t.prazo ? diasAte(t.prazo) : null });
+    }));
+    abertas.sort((a, b) => (a.atraso ?? 9e9) - (b.atraso ?? 9e9));
+    corpo = abertas.length
+      ? `<ul>${abertas.slice(0, 30).map(({ r, t, atraso }) => item(t.titulo,
+          `${r.endereco}${t.prazo ? ` · ${dataBr(t.prazo)}` : ''}${atraso !== null && atraso < 0 ? ' · ATRASADA' : ''}`)).join('')}</ul>`
+      : '<p class="ficha-vazio">Nenhuma tarefa em aberto.</p>';
+  } else if (qual === 'logs') {
+    titulo = 'Registro de atividade';
+    corpo = logs.length
+      ? `<ul>${logs.slice(0, 40).map(l => item(`${l.quem} — ${l.acao}`,
+          `${l.detalhe ? l.detalhe + ' · ' : ''}${new Date(l.em).toLocaleString('pt-BR')}`)).join('')}</ul>`
+      : '<p class="ficha-vazio">Nada registrado ainda.</p>';
+  } else {
+    const re = qual === 'cadastrados' ? /criado manualmente|importado em lote/i : /marcado como lido/i;
+    titulo = qual === 'cadastrados' ? 'Imóveis cadastrados por você' : 'Imóveis consultados por você';
+    const meus = logs.filter(l => l.quem === meu && re.test(l.acao));
+    corpo = meus.length
+      ? `<ul>${meus.slice(0, 40).map(l => item(l.acao,
+          `${l.detalhe ? l.detalhe + ' · ' : ''}${new Date(l.em).toLocaleString('pt-BR')}`)).join('')}</ul>`
+      : '<p class="ficha-vazio">Nada registrado com o seu nome ainda.</p>';
+  }
+
+  alvo.innerHTML = `<h4>${titulo}</h4>${corpo}`;
+  alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/** Tela de entrada: escolher quem está operando, ou cadastrar alguém. */
+function abrirLogin() {
+  fecharModal();
+  const html = `<div class="overlay" id="overlay"><div class="modal" style="max-width:520px" role="dialog" aria-modal="true">
+    <h2>Quem está usando?</h2>
+    <div class="sub">Identifica suas ações no registro de atividade e no ranking.</div>
+
+    ${usuarios.length ? `<div class="lista-usuarios">
+      ${usuarios.map(u => `
+        <button class="cartao-usuario" data-id="${esc(u.id)}">
+          <span class="cu-avatar" style="${u.foto ? `background-image:url('${esc(u.foto)}')` : ''}">
+            ${u.foto ? '' : esc(u.nome.charAt(0).toUpperCase())}</span>
+          <span class="cu-txt">
+            <strong>${esc(u.nome)}</strong>
+            <span>${esc(u.cargo || 'sem cargo')} · CPF ●●●.${esc(u.id.slice(0,3))}.${esc(u.id.slice(3))}●●</span>
+          </span>
+        </button>`).join('')}
+    </div>` : '<p class="ficha-vazio">Nenhum perfil cadastrado ainda.</p>'}
+
+    <div class="aviso-box" style="margin-top:14px">
+      <strong>Isto identifica, não protege.</strong> Não há senha porque a plataforma
+      roda só no navegador — uma senha aqui seria legível por qualquer pessoa que
+      abrisse as ferramentas do navegador, dando aparência de proteção sem proteção.
+      Para trancar de verdade, use a senha do Windows e bloqueie a tela ao se afastar.
+    </div>
+
+    <details class="novo-perfil" ${usuarios.length ? '' : 'open'}>
+      <summary>+ Cadastrar novo perfil</summary>
+      <div class="grade" style="margin-top:12px">
+        <label class="full">Nome completo<input type="text" id="np-nome" placeholder="Felipe Nascimento"></label>
+        <label>4 primeiros dígitos do CPF<input type="text" id="np-id" maxlength="4" inputmode="numeric" placeholder="1234"></label>
+        <label>Cargo / função<input type="text" id="np-cargo" placeholder="Advogado"></label>
+      </div>
+      <button class="btn btn-p" id="np-criar" style="margin-top:11px">Cadastrar perfil</button>
+    </details>
+
+    <div class="modal-rodape">
+      <span class="esp"></span>
+      <button class="btn" id="lg-fechar">Fechar</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  $$('#overlay .cartao-usuario').forEach(b =>
+    b.addEventListener('click', () => entrarComo(b.dataset.id)));
+  $('#lg-fechar').addEventListener('click', fecharModal);
+  $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
+
+  $('#np-criar').addEventListener('click', () => {
+    const nome = $('#np-nome').value.trim();
+    const id = $('#np-id').value.replace(/\D/g, '');
+    if (!nome) { toast('Informe o nome.', true); return; }
+    if (id.length !== 4) { toast('Informe exatamente 4 dígitos do CPF.', true); return; }
+    if (usuarios.some(u => u.id === id)) { toast('Já existe um perfil com esses 4 dígitos.', true); return; }
+    usuarios.push({ id, nome, cargo: $('#np-cargo').value.trim(), foto: '', criadoEm: new Date().toISOString() });
+    salvarUsuarios();
+    registrar('Perfil cadastrado', nome);
+    entrarComo(id);
+  });
+}
+
+function abrirPerfilUsuario() {
+  if (!perfil.id) return abrirLogin();     // sem ninguém identificado, pede login
+  fecharModal();
+  const meus = dados.filter(r => r.responsavel && r.responsavel === perfil.nome);
+  const tarefasAbertas = dados.reduce((s, r) =>
+    s + (r.tarefas || []).filter(t => !t.feita).length, 0);
+
+  const html = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">
+    <h2>Meu perfil</h2>
+    <div class="sub">Identifica quem fez cada coisa no registro de atividade.</div>
+
+    <div class="perfil-edicao">
+      <div class="perfil-foto" id="pu-foto"
+           style="${perfil.foto ? `background-image:url('${esc(perfil.foto)}')` : ''}">
+        ${perfil.foto ? '' : esc((perfil.nome || '?').charAt(0).toUpperCase() || '?')}
+      </div>
+      <div class="perfil-campos">
+        <label>Nome<input type="text" id="pu-nome" value="${esc(perfil.nome)}" placeholder="Como você assina"></label>
+        <label>Cargo / função<input type="text" id="pu-cargo" value="${esc(perfil.cargo)}" placeholder="ex: Advogado responsável"></label>
+        <div class="acoes-barra" style="margin-top:8px">
+          <button class="btn" id="pu-escolher-foto">Escolher foto</button>
+          ${perfil.foto ? '<button class="btn btn-ghost" id="pu-tirar-foto">Remover foto</button>' : ''}
+          <input type="file" id="pu-arquivo-foto" accept="image/*" hidden>
+        </div>
+      </div>
+    </div>
+
+    <div class="aviso-box" style="margin-top:16px">
+      <strong>Por que não há senha aqui.</strong> Esta plataforma roda inteira no seu
+      navegador, sem servidor que verifique nada. Uma senha guardada aqui ficaria
+      legível para qualquer pessoa que abrisse as ferramentas do navegador, e não
+      impediria ninguém de ler os dados — daria <em>aparência</em> de proteção sem
+      proteção nenhuma, que é pior do que não ter.
+      <br><br>
+      O que protege de verdade: a <strong>senha do Windows</strong> e bloquear a tela
+      (tecla Windows + L) ao se afastar. Se precisar de acesso por usuário com senha
+      real, isso exige um servidor com autenticação — dá para fazer, é outro projeto.
+    </div>
+
+    <div class="perfil-nums">
+      <div class="pn clicavel" data-ver="cadastrados"><strong>${contarPor('cadastrou')}</strong><span>imóveis cadastrados</span></div>
+      <div class="pn clicavel" data-ver="consultados"><strong>${contarPor('consultou')}</strong><span>imóveis consultados</span></div>
+      <div class="pn clicavel" data-ver="tarefas"><strong>${tarefasAbertas}</strong><span>tarefas em aberto</span></div>
+      <div class="pn clicavel" data-ver="logs"><strong>${logs.length}</strong><span>registro de atividade</span></div>
+    </div>
+
+    <div class="hist" id="pu-detalhe"></div>
+
+    <div class="hist">
+      <h4>Desempenho da equipe</h4>
+      <p class="ficha-vazio" style="margin:0 0 10px">Visível a todos os perfis. Conta as ações registradas por pessoa.</p>
+      <div id="grafico-equipe">${graficoEquipe()}</div>
+    </div>
+
+    <div class="modal-rodape">
+      <button class="btn btn-perigo" id="pu-sair">Sair / trocar de perfil</button>
+      <span class="esp"></span>
+      <button class="btn" id="pu-fechar">Fechar</button>
+      <button class="btn btn-p" id="pu-salvar">Salvar</button>
+    </div>
+  </div></div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  $('#pu-salvar').addEventListener('click', () => {
+    const nome = $('#pu-nome').value.trim();
+    if (!nome) { toast('O nome não pode ficar vazio.', true); return; }
+    perfil.nome = nome;
+    perfil.cargo = $('#pu-cargo').value.trim();
+    // perfil é o mesmo objeto dentro de `usuarios`, então gravar a lista basta.
+    salvarUsuarios();
+    registrar('Perfil atualizado', perfil.nome);
+    aplicarPerfilNoTopo();
+    fecharModal();
+    toast('Perfil salvo.');
+  });
+  $('#pu-sair').addEventListener('click', sairDoPerfil);
+  $$('#overlay .pn.clicavel').forEach(el =>
+    el.addEventListener('click', () => detalharPerfil(el.dataset.ver)));
+  $('#pu-fechar').addEventListener('click', fecharModal);
+  $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
+
+  $('#pu-escolher-foto').addEventListener('click', () => $('#pu-arquivo-foto').click());
+  $('#pu-arquivo-foto').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) { toast('Imagem muito grande — use até 2 MB.', true); return; }
+    // Guardada como texto no próprio navegador; não sai daqui.
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      perfil.foto = leitor.result;
+      salvarUsuarios();
+      aplicarPerfilNoTopo();
+      abrirPerfilUsuario();
+      toast('Foto atualizada.');
+    };
+    leitor.readAsDataURL(f);
+  });
+  $('#pu-tirar-foto')?.addEventListener('click', () => {
+    perfil.foto = '';
+    salvarUsuarios();
+    aplicarPerfilNoTopo(); abrirPerfilUsuario();
   });
 }
 
@@ -2162,6 +2766,10 @@ async function enviarTrabalho(pacote) {
  */
 async function sincronizar(silencioso) {
   if (!cfgSync.token || !cfgSync.owner || !cfgSync.repo) return;
+  if (modoTeste) {
+    if (!silencioso) toast('Sincronização suspensa no modo de teste.', true);
+    return;
+  }
   const res = $('#res-sync');
   const dizer = (html, erro) => {
     if (!res) return;
@@ -2199,7 +2807,7 @@ async function sincronizar(silencioso) {
 const sincronizarAdiado = debounce(() => { if (cfgSync.token) sincronizar(true); }, 4000);
 
 function marcarSync() {
-  if (!cfgSync.token) return;
+  if (!cfgSync.token || modoTeste) return;   // base fictícia jamais sobe
   syncPendente = true;
   sincronizarAdiado();
 }
@@ -2590,6 +3198,7 @@ function chaveEndereco(r) {
 function importar(brutos) {
   let novos = 0, atualizados = 0;
   const avisos = [];
+  logEmMassa = true;                 // importação registra um resumo, não item a item
   brutos.forEach((b, i) => {
     if (!String(b.endereco || '').trim() && !String(b.matricula || '').trim()) {
       avisos.push(`Linha ${i + 2}: sem endereço nem matrícula — ignorada.`);
@@ -2620,6 +3229,10 @@ function importar(brutos) {
       novos++;
     }
   });
+  logEmMassa = false;
+  if (novos || atualizados) {
+    registrar('Importou imóveis', `${novos} novo(s), ${atualizados} atualizado(s)`);
+  }
   const fichas = sincronizarPerfis();   // arrematadores novos ganham ficha
   salvar(); popularSelects(); render();
   return { novos, atualizados, avisos, fichas };
@@ -2806,6 +3419,20 @@ function init() {
   // ficha do imóvel
   $('#btn-voltar').addEventListener('click', voltarDaFicha);
 
+  // Atalho do topo: volta ao painel e rola até a barra de seleção.
+  $('#btn-selecao').addEventListener('click', () => {
+    if (abaAtiva() !== 'painel') {
+      $$('.aba').forEach(x => x.classList.remove('ativa'));
+      $$('.painel').forEach(x => x.classList.remove('ativo'));
+      document.querySelector('.aba[data-p="painel"]').classList.add('ativa');
+      $('#p-painel').classList.add('ativo');
+      render();
+    }
+    $('#barra-sel').hidden = false;
+    $('#barra-sel').animate([{ transform: 'translateX(-50%) scale(1.04)' },
+                             { transform: 'translateX(-50%) scale(1)' }], { duration: 220 });
+  });
+
   // seleção múltipla e edição em lote
   $('#sel-etapa-valor').innerHTML =
     Object.entries(ETAPAS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
@@ -2817,7 +3444,18 @@ function init() {
     renderTabela();
   });
 
-  $('#sel-limpar').addEventListener('click', () => { selecionados.clear(); renderTabela(); });
+  const limparSelecao = () => {
+    selecionados.clear();
+    $('#barra-sel').hidden = true;      // esconde já, sem esperar o redesenho
+    if (abaAtiva() === 'painel') renderTabela();
+    renderBarraSel();
+  };
+  $('#sel-limpar').addEventListener('click', limparSelecao);
+
+  // Esc também fecha — mas só quando não há modal aberto, senão fecharia os dois.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && selecionados.size && !$('#overlay')) limparSelecao();
+  });
 
   $('#sel-aplicar-data').addEventListener('click', () => {
     const data = $('#sel-data').value;
@@ -2834,6 +3472,9 @@ function init() {
 
   $('#sel-lidas').addEventListener('click', () =>
     aplicarEmLote(r => { r.lida = true; }, 'Marcado como lido'));
+
+  $('#sel-nao-lidas').addEventListener('click', () =>
+    aplicarEmLote(r => { r.lida = false; }, 'Marcado como não lido'));
 
   // padrão da matrícula (RGI)
   $('#btn-rgi-detectar').addEventListener('click', () => {
@@ -2957,10 +3598,9 @@ function init() {
     }
     e.target.value = '';
   });
-  $('#btn-demo').addEventListener('click', () => {
-    const { novos } = importar(demo());
-    toast(`${novos} exemplo(s) carregado(s).`);
-  });
+  $('#btn-perfil').addEventListener('click', abrirPerfilUsuario);
+  $('#btn-teste-entrar').addEventListener('click', entrarModoTeste);
+  $('#btn-teste-sair').addEventListener('click', sairModoTeste);
   $('#btn-apagar').addEventListener('click', () => {
     if (!confirm(`Apagar TODOS os ${dados.length} registros?\n\nNão há como desfazer.`)) return;
     if (!confirm('Confirma definitivamente? Exporte um backup antes se ainda não fez.')) return;
@@ -2979,6 +3619,9 @@ function init() {
 
   carregar();
   carregarCfgSync();
+  carregarPerfil();
+  try { modoTeste = localStorage.getItem(CHAVE_MODO) === 'teste'; } catch (e) {}
+  atualizarTarjaTeste();
   popularSelects();
   render();
   verificarBackup();
