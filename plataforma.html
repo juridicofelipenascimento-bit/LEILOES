@@ -1630,15 +1630,40 @@ function cabecalhos() {
   };
 }
 
+/** Detalha o erro com a mensagem que o próprio GitHub devolve. */
+async function detalhe(resp) {
+  try { const e = await resp.json(); return e && e.message ? ' — ' + e.message : ''; }
+  catch (_) { return ''; }
+}
+
 async function baixarTrabalho() {
-  const resp = await fetch(urlApi() + '?ref=HEAD&t=' + Date.now(), { headers: cabecalhos(), cache: 'no-store' });
-  if (resp.status === 404) { shaRemoto = null; return null; }   // ainda não existe
-  if (resp.status === 401) throw new Error('Token inválido ou expirado.');
-  if (resp.status === 403) throw new Error('Token sem permissão de Contents nesse repositório.');
-  if (!resp.ok) throw new Error('HTTP ' + resp.status);
-  const j = await resp.json();
-  shaRemoto = j.sha;
-  return JSON.parse(deB64(j.content));
+  const resp = await fetch(urlApi() + '?t=' + Date.now(), { headers: cabecalhos(), cache: 'no-store' });
+
+  // 404 = arquivo ainda não existe. 409 = repositório sem nenhum commit
+  // (criado sem README). Nos dois casos começamos do zero: o PUT seguinte
+  // cria o arquivo e, se preciso, o primeiro commit.
+  if (resp.status === 404 || resp.status === 409) { shaRemoto = null; return null; }
+
+  if (resp.status === 401) throw new Error('Token inválido ou expirado. Gere outro e cole aqui.');
+  if (resp.status === 403) throw new Error('Token sem permissão. Confira: Repository permissions → Contents → Read and write.');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + await detalhe(resp));
+
+  let j;
+  try { j = await resp.json(); }
+  catch (_) { throw new Error('O GitHub respondeu sem conteúdo. Tente de novo em instantes.'); }
+
+  shaRemoto = j.sha || null;
+
+  // Arquivo existente porém vazio — não é erro, é base ainda sem trabalho.
+  const texto = j.content ? deB64(j.content).trim() : '';
+  if (!texto) return null;
+
+  try { return JSON.parse(texto); }
+  catch (_) {
+    throw new Error(`O arquivo ${cfgSync.path} do repositório está corrompido. `
+      + 'Apague ou renomeie esse arquivo pelo site do GitHub e sincronize de novo — '
+      + 'seus dados locais não são afetados.');
+  }
 }
 
 async function enviarTrabalho(pacote) {
@@ -1648,12 +1673,22 @@ async function enviarTrabalho(pacote) {
   };
   if (shaRemoto) corpo.sha = shaRemoto;
   const resp = await fetch(urlApi(), { method: 'PUT', headers: cabecalhos(), body: JSON.stringify(corpo) });
+
   if (resp.status === 409 || resp.status === 422) {
     return { conflito: true };   // outra máquina gravou antes
   }
-  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao gravar');
-  const j = await resp.json();
-  shaRemoto = j.content.sha;
+  if (resp.status === 401) throw new Error('Token inválido ou expirado. Gere outro e cole aqui.');
+  if (resp.status === 403) throw new Error('Token sem permissão de escrita. Confira: Contents → Read and write.');
+  if (resp.status === 404) throw new Error(`Repositório "${cfgSync.owner}/${cfgSync.repo}" não encontrado, `
+    + 'ou o token não o inclui em "Only select repositories".');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao gravar' + await detalhe(resp));
+
+  // A gravação já ocorreu; se a resposta vier estranha, apenas perdemos o sha
+  // e a próxima sincronização o rebusca. Não é motivo para acusar falha.
+  try {
+    const j = await resp.json();
+    shaRemoto = (j && j.content && j.content.sha) || null;
+  } catch (_) { shaRemoto = null; }
   return { ok: true };
 }
 
