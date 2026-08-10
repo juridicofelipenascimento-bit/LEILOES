@@ -1,22 +1,117 @@
 # Monitor de Leilões Imobiliários
 
 Plataforma para acompanhar imóveis em leilão em escala nacional, com ficha de
-arrematador, ficha de ocupante e atualização diária automática.
+arrematador, ficha de ocupante e funil de acompanhamento.
 
 ---
 
-# Parte 1 — Usar agora, sem instalar nada
+# Como usar
 
-Dê duplo clique em **`plataforma.html`**. Só isso. Funciona offline.
+**Dê duplo clique em `plataforma.html`.** É só isso — não precisa instalar nada,
+não precisa de internet para funcionar, não tem login.
 
-Para testar: aba **Backup e dados → Carregar exemplos**.
+Para conhecer a interface antes de carregar dados reais:
+aba **Backup e dados → Carregar exemplos**.
 
-Os dados ficam no navegador deste computador. **Limpar o histórico apaga tudo** —
-exporte backup pela aba Backup e dados com frequência.
+## Carregar imóveis reais
+
+Aba **Atualizar dados**:
+
+1. Clique nos estados que te interessam — o CSV baixa do site da Caixa
+2. Arraste os arquivos baixados para a área tracejada logo abaixo
+
+Pronto. A plataforma reconhece o formato, converte os valores, preserva os
+acentos e marca os imóveis novos como **NÃO LIDOS**. Reimportar o mesmo arquivo
+atualiza em vez de duplicar.
+
+## Sincronizar entre máquinas (opcional)
+
+Guarda o **seu trabalho** — etapas, anotações, fichas, marcações de lido — num
+repositório privado do GitHub. Você abre a plataforma em qualquer máquina,
+importa o CSV do estado, e suas anotações aparecem em cima dos imóveis.
+
+### Por que só o trabalho, e não a listagem
+
+| | Tamanho | Refazível? |
+|---|---|---|
+| Listagem da Caixa | ~10 MB nacional | Sim — rebaixa em 1 clique |
+| **Seu trabalho** | dezenas de KB | **Não** |
+
+Sincronizar os 10 MB a cada alteração estouraria o limite prático da API do
+GitHub e deixaria tudo lento. As anotações reencontram os imóveis pelo **número
+do imóvel da Caixa**, que é identificador estável.
+
+### Passo 1 — Criar o repositório de dados
+
+No GitHub: **New repository** → nome `leiloes-dados` → marque **Private** →
+**Create repository**.
+
+Privado porque as fichas de ocupante contêm dado pessoal. Não use o mesmo
+repositório da plataforma, que é público.
+
+### Passo 2 — Criar o token
+
+1. Canto superior direito → sua foto → **Settings**
+2. Menu esquerdo, no fim → **Developer settings**
+3. **Personal access tokens → Fine-grained tokens** → **Generate new token**
+4. Preencha:
+   - **Token name**: `leiloes`
+   - **Expiration**: 90 dias (renove quando expirar)
+   - **Repository access**: **Only select repositories** → escolha `leiloes-dados`
+   - **Permissions → Repository permissions → Contents**: **Read and write**
+5. **Generate token** e **copie** — o GitHub só mostra uma vez
+
+> Use **fine-grained**, nunca token clássico. O fine-grained fica limitado a um
+> repositório e a uma permissão; um token clássico daria acesso à sua conta inteira.
+
+### Passo 3 — Configurar na plataforma
+
+Aba **Backup e dados → Sincronização online**. Preencha usuário, repositório
+(`leiloes-dados`), seu nome e o token. **Salvar configuração**.
+
+Pronto. A partir daí grava sozinho alguns segundos depois de cada alteração, e
+puxa o trabalho das outras máquinas ao abrir.
+
+### Em outra máquina
+
+Abra a plataforma, configure o mesmo token, importe os CSVs dos estados que usa.
+As anotações se encaixam sozinhas.
+
+### Conflitos
+
+Se duas máquinas editarem o mesmo imóvel, **vence a alteração mais recente**. A
+fusão é registro a registro, então trabalho em imóveis diferentes nunca se perde.
+Anotação feita numa máquina cujo CSV ainda não foi importado na outra fica
+guardada e se encaixa quando o CSV chegar.
+
+### Limites
+
+- O token fica neste navegador. Quem tiver acesso à sua máquina desbloqueada tem
+  o token. Use o botão **Remover token deste navegador** em máquina compartilhada.
+- Sem internet, grava só localmente e sincroniza quando voltar.
+- Não há login: quem tem o token, tem acesso aos dados.
+
+## ⚠️ Backup: leia isto
+
+Os dados ficam **no navegador deste computador** — é a única cópia que existe.
+
+- Limpar o histórico/dados do navegador **apaga tudo**, sem recuperação
+- Os dados não acompanham o arquivo: copiar o `plataforma.html` para outro
+  computador abre uma base vazia
+- Não há sincronização com celular ou outro navegador
+
+A plataforma avisa quando faz mais de 14 dias desde o último backup, mas o
+hábito é seu: **aba Backup e dados → Exportar backup**. O JSON gerado guarda os
+imóveis e os cadastros de arrematador, e é o que você usa para restaurar ou
+levar para outra máquina.
 
 ---
 
-# Parte 2 — Passo a passo do GitHub (atualização automática)
+# Apêndice — Publicar no GitHub (opcional)
+
+> Só faz sentido se você quiser **consultar a lista de imóveis pelo celular**.
+> Suas anotações, etapas, fichas e marcações de lido **não** sincronizam por
+> esse caminho — elas moram no navegador onde foram criadas.
 
 ## Por que precisa disso
 
@@ -133,64 +228,76 @@ Para mudar o horário, edite a linha `cron` em
 `.github/workflows/atualizar-dados.yml` — o valor está em UTC, que é 3 horas à
 frente de Brasília.
 
-## Passo 6 — Coleta automática diária (roda na sua máquina)
+## Passo 6 — Atualizar os dados
 
-**Por que não roda no GitHub:** a Caixa usa proteção anti-bot (Radware) que
-responde CAPTCHA para os IPs de datacenter do GitHub Actions — testado, os 27
-estados foram recusados. Do seu IP residencial passa normalmente, também
-testado. Então a coleta roda no seu computador e o GitHub só hospeda.
+### Por que o download é feito por você
 
-O ciclo, depois de configurado, é sem intervenção sua:
+A Caixa protege esses arquivos com anti-bot (Radware) e serve um CAPTCHA para
+download automatizado. Foi testado nos dois cenários e **os dois foram
+recusados**: pelos servidores do GitHub Actions e por script rodando na máquina
+local. A própria página de bloqueio identifica o IP e o programa usado.
 
-```
-sua máquina (diário) → baixa 27 CSVs → processa → envia data.json
-                                                        ↓
-                    você abre o link  ←  GitHub Pages publica
-```
+Contornar isso — forjar identificação de navegador, manipular sessão ou
+resolver o captcha — não é caminho que este projeto siga. O site está sinalizando
+que não aceita acesso automatizado, e a decisão é dele.
 
-### 6.1 — Instalar o Node (uma vez só)
+**Seu navegador, porém, baixa normalmente** — é uso comum do site, como qualquer
+comprador faz. Então o download é seu, e todo o resto é automático.
 
-Baixe em [nodejs.org](https://nodejs.org) a versão **LTS** e instale
-(avançar → avançar → concluir). Para conferir, abra o PowerShell e digite
-`node --version` — deve aparecer algo como `v20.x.x`.
+### A rotina — tudo dentro da plataforma (2 minutos)
 
-### 6.2 — Testar rodando na mão
+Não precisa de Node, PowerShell, git nem pasta nenhuma.
 
-Abra a pasta do repositório **clonada pelo GitHub Desktop** (não a pasta
-original), entre em `scripts`, clique com o botão direito em
-**`baixar-caixa.ps1`** → **Executar com o PowerShell**.
+**1. Baixar** — abra a plataforma, aba **Atualizar dados**. Ela lista os 27
+estados com link direto, mostrando quantos imóveis você já tem de cada um e há
+quantos dias. Clique nos estados que te interessam; o CSV baixa.
 
-Ele mostra o progresso UF a UF, processa e envia. Ao terminar, abra o link do
-site — os imóveis devem estar lá, marcados como NÃO LIDOS.
+A lista se atualiza sozinha conforme sua base muda:
 
-> Se o Windows bloquear a execução de scripts, abra o PowerShell **como
-> administrador** e rode uma vez:
-> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+| Cor da borda | Significado |
+|---|---|
+| Verde | atualizado nos últimos 7 dias |
+| Vermelha | mais de 7 dias — hora de rebaixar |
+| Cinza | nunca carregado |
 
-### 6.3 — Agendar para rodar sozinho
+**2. Arrastar** — na mesma aba, logo abaixo, arraste os arquivos baixados para
+a área tracejada. Pode soltar vários de uma vez.
 
-1. Tecla Windows → digite **Agendador de Tarefas** → abra
-2. **Criar Tarefa Básica** (menu direito)
-3. Nome: `Coletar leilões` → Avançar
-4. **Diariamente** → Avançar → escolha o horário (ex.: 07:00) → Avançar
-5. **Iniciar um programa** → Avançar
-6. Em *Programa/script*: `powershell.exe`
-7. Em *Adicionar argumentos*, cole (ajustando o caminho para o da sua pasta
-   clonada):
+Pronto. A plataforma reconhece o formato da Caixa sozinha, converte os valores,
+preserva os acentos e incorpora tudo. Imóveis repetidos são **atualizados**, não
+duplicados — pode reimportar o mesmo arquivo sem medo. Os novos entram marcados
+como **NÃO LIDOS**.
 
-   ```
-   -ExecutionPolicy Bypass -File "C:\Users\SEU-USUARIO\Documents\GitHub\LEILOES\scripts\baixar-caixa.ps1"
-   ```
+> Não precisa ser diário. O estoque da Caixa muda devagar; uma vez por semana
+> costuma bastar.
 
-8. Avançar → Concluir
+### Onde os dados ficam nessa rotina
 
-Pronto. Todo dia no horário escolhido, com o computador ligado, a coleta roda e
-o site se atualiza sozinho.
+No **navegador deste computador**, como todo o resto da plataforma. Duas
+consequências:
+
+- não sincroniza com o celular;
+- limpar o histórico do navegador apaga tudo — **exporte backup** pela aba
+  Backup e dados.
+
+### Publicar no site (opcional)
+
+Se quiser que os dados apareçam também no endereço do GitHub Pages — para
+consultar do celular, por exemplo — há o caminho pelo repositório:
+
+1. Instale o [Node](https://nodejs.org) (versão LTS).
+2. No PowerShell **como administrador**, uma vez só:
+   `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+3. Coloque os CSVs baixados na pasta `fontes` do repositório clonado.
+4. Em `scripts`, botão direito em **`atualizar.ps1`** → **Executar com o
+   PowerShell**. Ele processa, envia, e o site atualiza em até 2 minutos.
+
+Os arquivos usados vão para `fontes/processados`, então a pasta não acumula.
 
 ### O que é coletado
 
-Imóveis da **Caixa Econômica Federal nos 27 estados** — a maior detentora de
-imóvel retomado do país.
+Imóveis da **Caixa Econômica Federal**, a maior detentora de imóvel retomado do
+país, em qualquer dos 27 estados que você escolher baixar.
 
 Origem: `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_{UF}.csv` —
 a mesma lista oferecida em

@@ -153,8 +153,18 @@ tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
 .link-perfil:hover { text-decoration: underline; }
 .link-imovel { color: var(--primaria); text-decoration: none; }
 .link-imovel:hover { text-decoration: underline; }
+.mapa.leilao { color: var(--marca); font-weight: 600; }
+.mapa.rgi { color: var(--aviso); font-weight: 600; }
+.link-add {
+  color: var(--texto-suave); text-decoration: none; font-size: 11.5px;
+  border: 1px dashed var(--borda); border-radius: 5px; padding: 2px 7px;
+  white-space: nowrap;
+}
+.link-add:hover { color: var(--marca); border-color: var(--marca); border-style: solid; }
 .desagio { font-size: 11.5px; color: var(--sucesso); font-weight: 600; }
 .dias-al { display: block; font-size: 11px; color: var(--alerta); font-weight: 700; margin-top: 2px; }
+.sem-data { color: var(--texto-suave); font-style: italic; }
+.tag.fin { background: color-mix(in srgb, var(--sucesso) 15%, transparent); color: var(--sucesso); font-size: 10.5px; }
 .vazio { padding: 40px; text-align: center; color: var(--texto-suave); }
 
 /* ---------- timeline ---------- */
@@ -174,6 +184,50 @@ tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
 .tl-item.urg .tl-badge { background: color-mix(in srgb, var(--alerta) 20%, transparent); color: var(--alerta); }
 
 /* ---------- caixas ---------- */
+/* Lembrete de backup */
+/* O `display` abaixo é de autor e sobrepõe o `[hidden] { display:none }` do
+   navegador — sem esta primeira regra, o atributo hidden não esconde nada. */
+.lembrete[hidden] { display: none; }
+.lembrete {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 11px 20px;
+  background: color-mix(in srgb, var(--aviso) 14%, var(--superficie));
+  border-bottom: 1px solid var(--borda);
+  font-size: 13px;
+}
+.lembrete span { flex: 1; min-width: 220px; }
+
+/* Área de arrastar arquivos */
+.solta {
+  border: 2px dashed var(--borda); border-radius: var(--raio);
+  padding: 28px 20px; text-align: center; background: var(--bg);
+  transition: border-color .15s, background .15s;
+}
+.solta.sobre { border-color: var(--marca); background: color-mix(in srgb, var(--marca) 8%, transparent); }
+.solta-txt { margin: 0 0 12px; color: var(--texto-suave); font-size: 13.5px; }
+
+/* Grade de UFs (aba Atualizar dados) */
+.ufs-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+.uf-card {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-left: 4px solid var(--borda);
+  border-radius: var(--raio); padding: 11px 13px;
+  text-decoration: none; color: var(--texto);
+}
+.uf-card:hover { border-color: var(--marca); border-left-color: var(--marca); }
+.uf-card.atual { border-left-color: var(--sucesso); }
+.uf-card.velho { border-left-color: var(--alerta); }
+.uf-card.vazio { border-left-color: var(--texto-suave); opacity: .7; }
+.uf-sigla { font-size: 17px; font-weight: 700; min-width: 30px; }
+.uf-info { font-size: 11.5px; color: var(--texto-suave); line-height: 1.45; }
+.uf-info strong { color: var(--texto); font-weight: 600; }
+.uf-seta { margin-left: auto; color: var(--marca); font-size: 14px; }
+
 .caixa {
   background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio);
   padding: 20px; box-shadow: var(--sombra); max-width: 720px; margin-bottom: 16px;
@@ -256,9 +310,16 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   <button class="aba ativa" data-p="painel">Painel</button>
   <button class="aba" data-p="timeline">Timeline</button>
   <button class="aba" data-p="arrematadores">Arrematadores</button>
+  <button class="aba" data-p="atualizar">Atualizar dados</button>
   <button class="aba" data-p="importar">Importar</button>
   <button class="aba" data-p="backup">Backup e dados</button>
 </nav>
+
+<div id="lembrete-backup" class="lembrete" hidden>
+  <span id="lembrete-txt"></span>
+  <button class="btn btn-p" id="lembrete-agora">Exportar backup</button>
+  <button class="btn btn-ghost" id="lembrete-depois">Depois</button>
+</div>
 
 <main>
 
@@ -290,6 +351,11 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
         <option value="p60">Próximos 60 dias</option>
         <option value="u30">Últimos 30 dias</option>
         <option value="u90">Últimos 90 dias</option>
+      </select>
+      <select id="f-financiamento">
+        <option value="">Financiamento: todos</option>
+        <option value="sim">Financiamento: Sim</option>
+        <option value="nao">Financiamento: Não</option>
       </select>
       <select id="f-ocupacao"><option value="">Ocupação: todas</option></select>
       <select id="f-uf"><option value="">Todas as UFs</option></select>
@@ -351,6 +417,69 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   <div class="tl" id="lista-perfis"></div>
 </section>
 
+<!-- ================= ATUALIZAR DADOS ================= -->
+<section id="p-atualizar" class="painel">
+  <div class="caixa" style="max-width:none">
+    <h3>Atualizar dados da Caixa</h3>
+    <p>
+      Clique nos estados que você acompanha — o arquivo baixa direto do site da
+      Caixa. Depois arraste os arquivos baixados para a pasta <code>fontes</code>
+      e rode <code>scripts\atualizar.ps1</code> (botão direito → Executar com o
+      PowerShell). O site se atualiza sozinho em seguida.
+    </p>
+    <p>
+      A contagem e a data abaixo refletem o que já está na sua base, e mudam a
+      cada atualização. Em vermelho, o que está com mais de 7 dias ou nunca foi
+      carregado.
+    </p>
+    <div class="acoes-barra" style="margin-top:12px">
+      <button class="btn" id="btn-abrir-pagina-caixa">Abrir a página da Caixa</button>
+      <button class="btn" id="btn-copiar-links">Copiar todos os links</button>
+    </div>
+  </div>
+
+  <div class="ufs-grade" id="ufs-grade"></div>
+
+  <div class="caixa" style="max-width:none; margin-top:18px">
+    <h3>2. Importar os arquivos baixados</h3>
+    <p>
+      Arraste para a área abaixo os CSVs que você acabou de baixar — pode soltar
+      vários de uma vez. O formato da Caixa é reconhecido automaticamente, e
+      imóveis repetidos são <strong>atualizados</strong>, não duplicados.
+    </p>
+
+    <div class="solta" id="solta">
+      <input type="file" id="arquivos-caixa" accept=".csv,.json" multiple hidden>
+      <p class="solta-txt">Arraste os arquivos aqui</p>
+      <button class="btn" id="btn-escolher">ou clique para escolher</button>
+    </div>
+
+    <div class="resultado" id="res-caixa" hidden></div>
+  </div>
+
+  <div class="caixa" style="max-width:none; margin-top:18px">
+    <h3>3. Link direto para a matrícula (RGI)</h3>
+    <p>
+      A Caixa publica a matrícula de cada imóvel num endereço previsível, com o
+      número do imóvel dentro. Cole abaixo o endereço de <strong>uma</strong>
+      matrícula que você já tenha baixado — a plataforma descobre o padrão
+      sozinha e passa a gerar o link direto para <strong>todos</strong> os
+      imóveis, sem você precisar abrir a página de cada um.
+    </p>
+    <p>
+      Para achar o endereço: no Chrome, tecle <code>Ctrl+J</code> para abrir os
+      downloads. Embaixo do arquivo da matrícula aparece o site de origem —
+      clique com o botão direito nele e escolha "Copiar endereço do link".
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <input type="url" id="rgi-exemplo" placeholder="https://venda-imoveis.caixa.gov.br/.../8444409862615.pdf" style="flex:1; min-width:280px">
+      <button class="btn btn-p" id="btn-rgi-detectar">Detectar padrão</button>
+      <button class="btn" id="btn-rgi-limpar">Limpar</button>
+    </div>
+    <div class="resultado" id="res-rgi" hidden></div>
+  </div>
+</section>
+
 <!-- ================= IMPORTAR ================= -->
 <section id="p-importar" class="painel">
   <div class="aviso-box">
@@ -393,6 +522,42 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
 
   <div class="resultado" id="feed-status" hidden></div>
 
+  <div class="caixa" style="max-width:none">
+    <h3>Sincronização online (GitHub)</h3>
+    <p>
+      Guarda o <strong>seu trabalho</strong> — etapas, anotações, fichas de ocupante e de
+      arrematador, marcações de lido — num repositório privado do GitHub. Assim você
+      abre a plataforma em qualquer máquina, importa o CSV do estado que interessa,
+      e suas anotações aparecem em cima dos imóveis.
+    </p>
+    <p>
+      A listagem da Caixa <strong>não</strong> é sincronizada de propósito: ela tem
+      megabytes e você rebaixa em um clique. O que sincroniza é o que não dá para refazer.
+    </p>
+
+    <div class="aviso-box">
+      <strong>Sobre o token:</strong> ele dá acesso de escrita ao repositório e fica
+      guardado neste navegador. Crie um token <em>fine-grained</em> limitado a
+      <strong>um único repositório</strong>, com permissão apenas de
+      <strong>Contents: Read and write</strong>. Nunca use um token clássico com acesso amplo.
+    </div>
+
+    <div class="grade">
+      <label>Usuário ou organização<input type="text" id="s-owner" placeholder="juridicofelipenascimento-bit"></label>
+      <label>Repositório de dados<input type="text" id="s-repo" placeholder="leiloes-dados"></label>
+      <label>Seu nome (para o histórico)<input type="text" id="s-autor" placeholder="Felipe"></label>
+      <label>Token<input type="password" id="s-token" placeholder="github_pat_..."></label>
+    </div>
+
+    <div class="acoes-barra" style="margin-top:12px">
+      <button class="btn btn-p" id="btn-sync-salvar">Salvar configuração</button>
+      <button class="btn" id="btn-sync-agora">Sincronizar agora</button>
+      <button class="btn btn-perigo" id="btn-sync-sair">Remover token deste navegador</button>
+    </div>
+
+    <div class="resultado" id="res-sync" hidden></div>
+  </div>
+
   <div class="caixa">
     <h3>Backup completo</h3>
     <p>
@@ -433,6 +598,11 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
 const CHAVE = 'leiloes_v2';
 const CHAVE_PERFIS = 'leiloes_perfis_v1';
 const CHAVE_TEMA = 'leiloes_tema';
+const CHAVE_BACKUP = 'leiloes_ultimo_backup';
+const CHAVE_RGI = 'leiloes_padrao_rgi';
+const CHAVE_SYNC = 'leiloes_sync_cfg';
+const CHAVE_ORFAOS = 'leiloes_orfaos';
+const DIAS_LEMBRETE = 14;
 
 const STATUS = {
   agendado:   'Agendado',
@@ -565,11 +735,15 @@ function salvar() {
   try {
     localStorage.setItem(CHAVE, JSON.stringify(dados));
     localStorage.setItem(CHAVE_PERFIS, JSON.stringify(perfis));
+    localStorage.setItem(CHAVE_ORFAOS, JSON.stringify(orfaos));
   } catch (e) {
     storageOk = false;
     $('#aviso-storage').hidden = false;
     toast('Falha ao salvar no navegador. Exporte um backup.', true);
   }
+  // Agendado a partir daqui para pegar toda edição sem espalhar chamadas pelo
+  // código. A guarda evita o laço: a própria sincronização chama salvar().
+  if (!sincronizando) marcarSync();
 }
 function carregar() {
   try {
@@ -578,6 +752,7 @@ function carregar() {
     localStorage.removeItem(teste);
     dados = JSON.parse(localStorage.getItem(CHAVE) || '[]');
     perfis = JSON.parse(localStorage.getItem(CHAVE_PERFIS) || '[]');
+    padraoRgi = localStorage.getItem(CHAVE_RGI) || '';
   } catch (e) {
     storageOk = false;
     $('#aviso-storage').hidden = false;
@@ -672,6 +847,8 @@ function normalizar(r, anterior, preservarVazios) {
     valorMinimo:    num(r.valorMinimo, base.valorMinimo),
     valorLance:     num(r.valorLance, base.valorLance),
     dataLeilao:     txt(r.dataLeilao, base.dataLeilao),
+    dataListagem:   txt(r.dataListagem, base.dataListagem),
+    financiavel:    r.financiavel !== undefined ? !!r.financiavel : (base.financiavel ?? false),
     status:         STATUS[r.status] ? r.status : (base.status || 'agendado'),
     etapa:          ETAPAS[r.etapa] ? r.etapa : (base.etapa || 'novo'),
     ocupacao:       OCUPACAO[r.ocupacao] ? r.ocupacao : (base.ocupacao || 'nao_informado'),
@@ -679,6 +856,7 @@ function normalizar(r, anterior, preservarVazios) {
     arrematador:    txt(r.arrematador, base.arrematador),
     fonte:          txt(r.fonte, base.fonte),
     link:           txt(r.link, base.link),
+    linkRgi:        txt(r.linkRgi, base.linkRgi),
     notas:          txt(r.notas, base.notas),
     lida:           r.lida !== undefined ? !!r.lida : (base.lida ?? false),
     historico:      base.historico || r.historico || [],
@@ -710,6 +888,7 @@ function filtrar() {
   const etapa   = $('#f-etapa').value;
   const periodo = $('#f-periodo').value;
   const ocup    = $('#f-ocupacao').value;
+  const fin     = $('#f-financiamento').value;
   const uf      = $('#f-uf').value;
   const fonte   = $('#f-fonte').value;
   const vmin    = $('#f-vmin').value ? Number($('#f-vmin').value) : null;
@@ -722,6 +901,8 @@ function filtrar() {
     if (status && r.status !== status) return false;
     if (etapa && r.etapa !== etapa) return false;
     if (ocup && r.ocupacao !== ocup) return false;
+    if (fin === 'sim' && !r.financiavel) return false;
+    if (fin === 'nao' && r.financiavel) return false;
     if (uf && r.estado !== uf) return false;
     if (fonte && r.fonte !== fonte) return false;
     if (periodo) {
@@ -759,6 +940,8 @@ function render() {
   renderTabela();
   renderTimeline();
   renderPerfis();
+  renderUFs();
+  renderRgi();
   $('#resumo-topo').textContent =
     `${visiveis.length} de ${dados.length} imóveis · ${dados.filter(r => !r.lida).length} não lidos`;
 }
@@ -818,10 +1001,23 @@ function renderTabela() {
         <div class="end-p">${esc(r.endereco || '(sem endereço)')}</div>
         ${local ? `<div class="end-s">${esc(local)}</div>` : ''}
         ${r.matricula ? `<div class="end-s">Matrícula ${esc(r.matricula)}</div>` : ''}
+        ${r.financiavel ? '<div class="end-s"><span class="tag fin" title="Coluna &quot;Financiamento&quot; da planilha da Caixa">Financiamento: Sim</span></div>' : ''}
         ${r.processo ? `<div class="end-s">Proc. ${esc(r.processo)}</div>` : ''}
-        <a class="mapa" href="${mapa}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver no mapa ↗</a>
+        <a class="mapa" href="${mapa}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Mapa ↗</a>
+        ${r.link ? ` · <a class="mapa leilao" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Leilão ↗</a>` : ''}
+        ${(() => {
+          // Só aparece quando aponta para o PDF da matrícula de verdade —
+          // link "RGI" que leva à página do leilão seria enganoso.
+          const u = urlRgi(r);
+          return u ? ` · <a class="mapa rgi" href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">RGI ↗</a>` : '';
+        })()}
       </td>
-      <td>${dataBr(r.dataLeilao)}${urg ? `<span class="dias-al">${d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : 'em ' + d + ' dias'}</span>` : ''}</td>
+      <td>${r.dataLeilao
+        ? `${dataBr(r.dataLeilao)}${urg ? `<span class="dias-al">${d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : 'em ' + d + ' dias'}</span>` : ''}`
+        : `<span class="sem-data">a definir</span>${r.link
+            ? `<div class="end-s"><a class="mapa" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">ver no edital ↗</a></div>`
+            : ''}${r.dataListagem
+            ? `<div class="end-s">listagem de ${dataBr(r.dataListagem)}</div>` : ''}`}</td>
       <td><span class="tag st-${r.status}">${STATUS[r.status]}</span></td>
       <td><span class="tag et">${ETAPAS[r.etapa]}</span></td>
       <td>${moeda(r.valorAvaliacao)}</td>
@@ -830,12 +1026,12 @@ function renderTabela() {
             : (r.valorMinimo !== null && r.valorMinimo !== undefined
                 ? `${moeda(r.valorMinimo)}<div class="end-s">preço mínimo</div>`
                 : '—')}${desagio}</td>
-      <td>${(r.ocupacao === 'ocupado' || r.ocupacao === 'litigio')
-        ? `<a href="#" class="tag oc-${r.ocupacao} link-ocupante" data-id="${r.id}">${OCUPACAO[r.ocupacao]}${r.ocupante && r.ocupante.nome ? ' ·' : ' +'}</a>${r.ocupante && r.ocupante.nome ? `<div class="end-s">${esc(r.ocupante.nome)}</div>` : ''}`
-        : `<span class="tag oc-${r.ocupacao}">${OCUPACAO[r.ocupacao]}</span>`}</td>
+      <td><a href="#" class="tag oc-${r.ocupacao} link-ocupante" data-id="${r.id}"
+             title="Abrir ficha do ocupante">${OCUPACAO[r.ocupacao]}${r.ocupante && r.ocupante.nome ? '' : ' +'}</a>${
+        r.ocupante && r.ocupante.nome ? `<div class="end-s">${esc(r.ocupante.nome)}</div>` : ''}</td>
       <td>${r.arrematador
         ? `<a href="#" class="link-perfil" data-nome="${esc(r.arrematador)}">${esc(r.arrematador)}</a>`
-        : '—'}</td>
+        : `<a href="#" class="link-add" data-id="${r.id}" title="Registrar arrematador">+ registrar</a>`}</td>
       <td>${esc(r.fonte) || '—'}</td>
     </tr>`;
   }).join('');
@@ -851,6 +1047,12 @@ function renderTabela() {
     a.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
       abrirOcupante(a.dataset.id);
+    }));
+  tb.querySelectorAll('.link-add').forEach(a =>
+    a.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      abrir(a.dataset.id);            // abre o imóvel; o campo Arrematador está lá
+      setTimeout(() => $('#m-arrematador')?.focus(), 60);
     }));
 }
 
@@ -941,7 +1143,16 @@ function mostrarModal(r) {
       <label>Ocupação (conforme edital)<select id="m-ocupacao">${opts(OCUPACAO, r.ocupacao)}</select></label>
       ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
       ${campo('fonte', 'Fonte', 'text', r.fonte)}
-      ${campo('link', 'Link do edital / processo', 'url', r.link, 'class="full"')}
+      <label class="full">Link do edital / anúncio
+        ${r.link ? `<a class="link-imovel" href="${esc(r.link)}" target="_blank" rel="noopener"
+             style="font-size:12px;margin-bottom:2px">Abrir a página do imóvel ↗ — lá estão a data do leilão, o edital e a matrícula (RGI) para download</a>` : ''}
+        <input id="m-link" type="url" value="${esc(r.link ?? '')}">
+      </label>
+      <label class="full">Link direto da matrícula (RGI)
+        ${r.linkRgi ? `<a class="link-imovel" href="${esc(r.linkRgi)}" target="_blank" rel="noopener"
+             style="font-size:12px;margin-bottom:2px">Abrir a matrícula ↗</a>` : ''}
+        <input id="m-linkRgi" type="url" value="${esc(r.linkRgi ?? '')}" placeholder="cole aqui depois de baixar, para voltar rápido">
+      </label>
       <label class="full">Anotações<textarea id="m-notas" rows="4">${esc(r.notas)}</textarea></label>
     </div>
     ${hist}
@@ -1165,6 +1376,438 @@ function salvarPerfil() {
   toast('Cadastro salvo.');
 }
 
+/* ---------- lembrete de backup ---------- */
+// Nesta configuração o navegador é a ÚNICA cópia dos dados: limpar o histórico
+// apaga tudo, sem recuperação. O lembrete existe para que isso não aconteça
+// por esquecimento.
+function verificarBackup() {
+  const barra = $('#lembrete-backup');
+  if (!barra || !dados.length) return;
+
+  let ultimo = null;
+  try { ultimo = localStorage.getItem(CHAVE_BACKUP); } catch (e) { return; }
+
+  const dias = ultimo
+    ? Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000)
+    : null;
+  if (dias !== null && dias < DIAS_LEMBRETE) return;
+
+  $('#lembrete-txt').innerHTML = dias === null
+    ? `Você tem <strong>${dados.length}</strong> imóveis e nenhum backup. Se este navegador for limpo, tudo se perde.`
+    : `Último backup há <strong>${dias} dias</strong>. Seus dados existem só neste navegador.`;
+  barra.hidden = false;
+}
+
+function registrarBackup() {
+  try { localStorage.setItem(CHAVE_BACKUP, new Date().toISOString()); } catch (e) {}
+  const barra = $('#lembrete-backup');
+  if (barra) barra.hidden = true;
+}
+
+function exportarBackup() {
+  baixar(`backup-leiloes-${new Date().toISOString().slice(0, 10)}.json`,
+    JSON.stringify({ imoveis: dados, arrematadores: perfis }, null, 2),
+    'application/json');
+  registrarBackup();
+  toast('Backup exportado.');
+}
+
+/* ==================== sincronização (GitHub) ==================== */
+// Sincroniza apenas O TRABALHO do usuário — etapas, notas, fichas, marcações.
+// A listagem da Caixa fica de fora: tem megabytes, é refazível em um clique, e
+// mandá-la a cada gravação estouraria o limite prático da API do GitHub.
+// A costura entre as duas é a chave estável de cada imóvel.
+
+let cfgSync = { owner: '', repo: '', token: '', autor: '', path: 'trabalho.json' };
+let shaRemoto = null;      // versão do arquivo remoto, para detectar conflito
+let orfaos = {};           // trabalho sem imóvel correspondente (CSV ainda não importado)
+let syncPendente = false;
+let sincronizando = false; // guarda: sincronizar() chama salvar(), que agendaria nova sync
+
+/** Identificador estável do imóvel, na ordem de confiabilidade. */
+function chaveTrabalho(r) {
+  if (r.codigoFonte) return 'c:' + r.codigoFonte;
+  if (r.matricula)   return 'm:' + semAcento(r.matricula).replace(/[^a-z0-9]/g, '');
+  if (r.processo)    return 'p:' + semAcento(r.processo).replace(/[^a-z0-9]/g, '');
+  const e = chaveEndereco(r);
+  return e ? 'e:' + e : '';
+}
+
+/** Um registro só entra no pacote se o usuário mexeu nele. */
+function foiTrabalhado(r) {
+  return !!(r.lida || r.notas || r.arrematador || r.dataLeilao || r.valorLance ||
+            r.linkRgi || r.matricula || r.processo || r.edital ||
+            (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
+            (r.etapa && r.etapa !== 'novo') ||
+            (r.ocupacao && r.ocupacao !== 'nao_informado') ||
+            (r.status && r.status !== 'agendado'));
+}
+
+const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador',
+  'dataLeilao','valorLance','linkRgi','matricula','processo','edital','status','historico'];
+
+function extrairTrabalho() {
+  const itens = { ...orfaos };
+  dados.forEach(r => {
+    if (!foiTrabalhado(r)) return;
+    const k = chaveTrabalho(r);
+    if (!k) return;
+    const o = { atualizadoEm: r.atualizadoEm, autor: cfgSync.autor || '' };
+    CAMPOS_TRABALHO.forEach(c => { if (r[c] !== undefined) o[c] = r[c]; });
+    itens[k] = o;
+  });
+  return { versao: 1, gravadoEm: new Date().toISOString(), itens, perfis };
+}
+
+/** Aplica o pacote sobre os imóveis locais. O que não casar vira órfão. */
+function aplicarTrabalho(pacote) {
+  if (!pacote || typeof pacote !== 'object') return { aplicados: 0, orfaos: 0 };
+  const itens = pacote.itens || {};
+  const porChave = new Map();
+  dados.forEach(r => { const k = chaveTrabalho(r); if (k) porChave.set(k, r); });
+
+  let aplicados = 0;
+  orfaos = {};
+  Object.entries(itens).forEach(([k, o]) => {
+    const r = porChave.get(k);
+    if (!r) { orfaos[k] = o; return; }
+    // O mais recente vence. Sem isso, sincronizar desfaria edição local nova.
+    if (r.atualizadoEm && o.atualizadoEm && r.atualizadoEm > o.atualizadoEm) return;
+    CAMPOS_TRABALHO.forEach(c => { if (o[c] !== undefined) r[c] = o[c]; });
+    aplicados++;
+  });
+
+  if (Array.isArray(pacote.perfis)) {
+    pacote.perfis.forEach(p => {
+      if (!acharPerfil(p.nome)) perfis.push(p);
+    });
+  }
+  return { aplicados, orfaos: Object.keys(orfaos).length };
+}
+
+function b64(texto) {
+  const bytes = new TextEncoder().encode(texto);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function deB64(b64txt) {
+  const bin = atob(b64txt.replace(/\s/g, ''));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function urlApi() {
+  return `https://api.github.com/repos/${cfgSync.owner}/${cfgSync.repo}/contents/${cfgSync.path}`;
+}
+function cabecalhos() {
+  return {
+    'Authorization': 'Bearer ' + cfgSync.token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+}
+
+async function baixarTrabalho() {
+  const resp = await fetch(urlApi() + '?ref=HEAD&t=' + Date.now(), { headers: cabecalhos(), cache: 'no-store' });
+  if (resp.status === 404) { shaRemoto = null; return null; }   // ainda não existe
+  if (resp.status === 401) throw new Error('Token inválido ou expirado.');
+  if (resp.status === 403) throw new Error('Token sem permissão de Contents nesse repositório.');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const j = await resp.json();
+  shaRemoto = j.sha;
+  return JSON.parse(deB64(j.content));
+}
+
+async function enviarTrabalho(pacote) {
+  const corpo = {
+    message: `trabalho: ${cfgSync.autor || 'atualização'} ${new Date().toISOString().slice(0, 16)}`,
+    content: b64(JSON.stringify(pacote, null, 2)),
+  };
+  if (shaRemoto) corpo.sha = shaRemoto;
+  const resp = await fetch(urlApi(), { method: 'PUT', headers: cabecalhos(), body: JSON.stringify(corpo) });
+  if (resp.status === 409 || resp.status === 422) {
+    return { conflito: true };   // outra máquina gravou antes
+  }
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao gravar');
+  const j = await resp.json();
+  shaRemoto = j.content.sha;
+  return { ok: true };
+}
+
+/**
+ * Ciclo completo: baixa, funde com o local, envia. Em conflito, refaz o ciclo
+ * uma vez — a fusão é por registro e pelo mais recente, então o segundo envio
+ * já contém os dois lados.
+ */
+async function sincronizar(silencioso) {
+  if (!cfgSync.token || !cfgSync.owner || !cfgSync.repo) return;
+  const res = $('#res-sync');
+  const dizer = (html, erro) => {
+    if (!res) return;
+    res.hidden = false;
+    res.className = 'resultado' + (erro ? ' erro' : '');
+    res.innerHTML = html;
+  };
+  if (sincronizando) return;
+  sincronizando = true;
+  try {
+    if (!silencioso) dizer('Sincronizando…');
+    const remoto = await baixarTrabalho();
+    const { aplicados, orfaos: qtdOrfaos } = aplicarTrabalho(remoto);
+    let envio = await enviarTrabalho(extrairTrabalho());
+    if (envio.conflito) {
+      const denovo = await baixarTrabalho();
+      aplicarTrabalho(denovo);
+      envio = await enviarTrabalho(extrairTrabalho());
+    }
+    salvar(); popularSelects(); render();
+    syncPendente = false;
+    const qtd = Object.keys(extrairTrabalho().itens).length;
+    dizer(`<strong>Sincronizado.</strong> ${qtd} registro(s) de trabalho no repositório`
+      + (aplicados ? ` · ${aplicados} atualizado(s) desta vez` : '')
+      + (qtdOrfaos ? `<br><br>${qtdOrfaos} anotação(ões) aguardando o CSV do estado correspondente — importe e elas se encaixam.` : ''));
+    if (!silencioso) toast('Sincronizado.');
+  } catch (e) {
+    dizer(`<strong>Falha:</strong> ${esc(e.message)}`, true);
+    if (!silencioso) toast('Falha ao sincronizar: ' + e.message, true);
+  } finally {
+    sincronizando = false;
+  }
+}
+
+const sincronizarAdiado = debounce(() => { if (cfgSync.token) sincronizar(true); }, 4000);
+
+function marcarSync() {
+  if (!cfgSync.token) return;
+  syncPendente = true;
+  sincronizarAdiado();
+}
+
+function carregarCfgSync() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CHAVE_SYNC) || '{}');
+    cfgSync = { ...cfgSync, ...c };
+    orfaos = JSON.parse(localStorage.getItem(CHAVE_ORFAOS) || '{}');
+  } catch (e) {}
+  ['owner','repo','autor'].forEach(k => { const el = $('#s-' + k); if (el) el.value = cfgSync[k] || ''; });
+  if ($('#s-token')) $('#s-token').value = cfgSync.token ? '••••••••' : '';
+}
+
+/* ---------- matrícula (RGI) ---------- */
+// Em vez de chutar a URL da matrícula, a plataforma deduz o padrão a partir de
+// um endereço real que o usuário cole: acha o número do imóvel dentro da URL e
+// o substitui por um curinga. Assim o link direto vale para todos os imóveis.
+let padraoRgi = '';
+
+function derivarPadraoRgi(url, codigos) {
+  const limpa = String(url || '').trim();
+  if (!/^https?:\/\//i.test(limpa)) return { erro: 'Endereço inválido — precisa começar com http.' };
+
+  // 1ª tentativa: o número de um imóvel que já está na base aparece na URL.
+  for (const c of codigos) {
+    if (c && limpa.includes(c)) {
+      return { padrao: limpa.split(c).join('{codigo}') };
+    }
+  }
+  // 2ª tentativa: qualquer sequência longa de dígitos serve como identificador.
+  const m = limpa.match(/\d{7,}/);
+  if (m) return { padrao: limpa.replace(m[0], '{codigo}') };
+
+  return { erro: 'Não encontrei o número do imóvel dentro desse endereço.' };
+}
+
+/** URL da matrícula: a específica do registro, ou a derivada do padrão. */
+function urlRgi(r) {
+  if (r.linkRgi) return r.linkRgi;
+  if (padraoRgi && r.codigoFonte) return padraoRgi.replace('{codigo}', r.codigoFonte);
+  return '';
+}
+
+function renderRgi() {
+  const res = $('#res-rgi');
+  if (!res) return;
+  if (!padraoRgi) { res.hidden = true; return; }
+  const comCodigo = dados.filter(r => r.codigoFonte).length;
+  res.hidden = false; res.className = 'resultado';
+  res.innerHTML = `<strong>Padrão ativo.</strong><br>
+    <code>${esc(padraoRgi)}</code><br><br>
+    ${comCodigo} imóvel(is) com link direto para a matrícula.`;
+}
+
+/* ---------- leitura de arquivos da Caixa ---------- */
+
+/**
+ * Os CSVs da Caixa são Latin-1, não UTF-8. Decodificar errado transforma todo
+ * acento em lixo. Tenta UTF-8 e, se aparecer o caractere de substituição,
+ * refaz como windows-1252.
+ */
+function decodificarBuffer(buffer) {
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  if (!utf8.includes('�')) return utf8;
+  return new TextDecoder('windows-1252').decode(buffer);
+}
+
+/**
+ * Reconhece pelo conteúdo, não pelo nome do arquivo — assim continua valendo
+ * se você renomear o download. Olha um trecho generoso porque o cabeçalho pode
+ * vir depois de linhas de título ou em branco.
+ */
+function ehFormatoCaixa(texto) {
+  const inicio = semAcento(texto.slice(0, 1500));
+  return inicio.includes('lista de imoveis da caixa') ||
+         (inicio.includes('do imovel') && inicio.includes('modalidade de venda'));
+}
+
+/**
+ * Busca uma coluna tolerando variações de escrita. O arquivo da Caixa usa
+ * "N° do imóvel", mas o caractere de grau (°) e o ordinal masculino (º) são
+ * distintos e trocam entre versões; acentos e espaços também variam. Comparar
+ * a chave normalizada evita que uma diferença invisível zere a coluna inteira.
+ */
+function coluna(obj, ...nomes) {
+  const limpar = (s) => semAcento(s).replace(/[^a-z0-9]/g, '');
+  const chaves = Object.keys(obj);
+  for (const nome of nomes) {
+    const alvo = limpar(nome);
+    const achou = chaves.find(k => limpar(k) === alvo);
+    if (achou !== undefined) return String(obj[achou] ?? '').trim();
+  }
+  return '';
+}
+
+/**
+ * Converte o CSV da Caixa para o formato interno.
+ *
+ * O cabeçalho é localizado pelo CONTEÚDO, não pela posição: o arquivo traz uma
+ * linha de título e pode trazer linhas em branco antes do cabeçalho, em número
+ * que varia. Descartar "a primeira linha" fazia o cabeçalho real ser lido como
+ * dado — e aí toda coluna ficava vazia e todo imóvel era descartado.
+ */
+function mapearCaixa(texto) {
+  const linhas = texto.split('\n');
+  const iCab = linhas.findIndex(l => /endere/i.test(l) && l.includes(';'));
+  if (iCab === -1) return [];
+
+  // A listagem não traz a data de cada leilão — só a data em que a Caixa gerou
+  // o arquivo. Guardamos essa data para você saber a que dia os preços se
+  // referem. A data do leilão em si está na página de cada imóvel.
+  const mGer = texto.slice(0, 600).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  const dataListagem = mGer ? `${mGer[3]}-${mGer[2]}-${mGer[1]}` : '';
+
+  const out = [];
+  parseCSV(linhas.slice(iCab).join('\n')).forEach(i => {
+    const endereco = coluna(i, 'Endereço', 'Endereco');
+    if (!endereco) return;
+    const modalidade = coluna(i, 'Modalidade de venda', 'Modalidade');
+    out.push({
+      codigoFonte:    coluna(i, 'N° do imóvel', 'Nº do imóvel', 'N do imovel'),
+      endereco,
+      bairro:         coluna(i, 'Bairro'),
+      municipio:      coluna(i, 'Cidade', 'Município'),
+      estado:         coluna(i, 'UF', 'Estado'),
+      valorAvaliacao: paraNumero(coluna(i, 'Valor de avaliação', 'Valor de avaliacao')),
+      valorMinimo:    paraNumero(coluna(i, 'Preço', 'Preco')),
+      status:         'agendado',
+      ocupacao:       'nao_informado',   // não consta da lista; está no edital
+      dataListagem,
+      // "Financiamento" na planilha da Caixa = a COMPRA pode ser financiada.
+      // Não indica que o imóvel veio de um financiamento executado.
+      financiavel:    /^sim$/i.test(coluna(i, 'Financiamento')),
+      fonte:          'Caixa — ' + (modalidade || 'venda'),
+      link:           coluna(i, 'Link de acesso', 'Link'),
+      notas:          coluna(i, 'Descrição', 'Descricao'),
+    });
+  });
+  return out;
+}
+
+/** Lê os arquivos escolhidos e incorpora à base. */
+async function processarArquivosCaixa(lista) {
+  const res = $('#res-caixa');
+  const arquivos = Array.from(lista).filter(f => /\.(csv|json)$/i.test(f.name));
+  if (!arquivos.length) {
+    res.hidden = false; res.className = 'resultado erro';
+    res.innerHTML = '<strong>Nada a importar.</strong> Envie arquivos .csv ou .json.';
+    return;
+  }
+
+  res.hidden = false; res.className = 'resultado';
+  res.innerHTML = 'Processando…';
+
+  let novos = 0, atualizados = 0;
+  const linhas = [];
+
+  for (const f of arquivos) {
+    try {
+      const texto = decodificarBuffer(await f.arrayBuffer());
+      let registros;
+
+      if (f.name.toLowerCase().endsWith('.json')) {
+        const j = JSON.parse(texto);
+        registros = Array.isArray(j) ? j : [j];
+      } else if (ehFormatoCaixa(texto)) {
+        registros = mapearCaixa(texto);
+      } else {
+        // CSV genérico: espera-se que as colunas usem os nomes internos.
+        const rotulo = f.name.replace(/\.(csv|json)$/i, '');
+        registros = parseCSV(texto).map(r => ({ fonte: rotulo, ...r }));
+      }
+
+      const r = importar(registros);
+      novos += r.novos; atualizados += r.atualizados;
+      linhas.push(`<strong>${esc(f.name)}</strong>: ${r.novos} novo(s), ${r.atualizados} atualizado(s)`);
+    } catch (e) {
+      linhas.push(`<strong>${esc(f.name)}</strong>: erro — ${esc(e.message)}`);
+    }
+  }
+
+  res.innerHTML = `<strong>Importação concluída.</strong><br>
+    Total: ${novos} novo(s) · ${atualizados} atualizado(s) · base com ${dados.length} imóveis
+    <br><br>${linhas.join('<br>')}`;
+  toast(novos ? `${novos} imóvel(is) novo(s).` : 'Base atualizada.');
+}
+
+/* ---------- aba Atualizar dados ---------- */
+const UFS_BR = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA',
+                'PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+const URL_CAIXA_UF = (uf) =>
+  `https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${uf}.csv`;
+const PAGINA_CAIXA = 'https://venda-imoveis.caixa.gov.br/sistema/download-lista.asp';
+
+function renderUFs() {
+  const alvo = $('#ufs-grade');
+  if (!alvo) return;
+
+  // Quantos imóveis e qual a atualização mais recente por estado.
+  const porUF = new Map();
+  dados.forEach(r => {
+    if (!r.estado) return;
+    const atual = porUF.get(r.estado) || { qtd: 0, em: '' };
+    atual.qtd++;
+    if (r.atualizadoEm > atual.em) atual.em = r.atualizadoEm;
+    porUF.set(r.estado, atual);
+  });
+
+  alvo.innerHTML = UFS_BR.map(uf => {
+    const info = porUF.get(uf);
+    let classe = 'vazio', detalhe = 'nunca carregado';
+    if (info && info.qtd) {
+      const dias = Math.floor((Date.now() - new Date(info.em).getTime()) / 86400000);
+      classe = dias > 7 ? 'velho' : 'atual';
+      const quando = dias <= 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`;
+      const rotulo = info.qtd === 1 ? 'imóvel' : 'imóveis';
+      detalhe = `<strong>${info.qtd.toLocaleString('pt-BR')}</strong> ${rotulo} · ${quando}`;
+    }
+    return `<a class="uf-card ${classe}" href="${URL_CAIXA_UF(uf)}"
+              target="_blank" rel="noopener" title="Baixar a lista de ${uf}">
+        <span class="uf-sigla">${uf}</span>
+        <span class="uf-info">${detalhe}</span>
+        <span class="uf-seta">↓</span>
+      </a>`;
+  }).join('');
+}
+
 function renderPerfis() {
   const alvo = $('#lista-perfis');
   if (!alvo) return;
@@ -1201,7 +1844,8 @@ function salvarModal() {
     valorAvaliacao: v('valorAvaliacao'), valorLance: v('valorLance'), dataLeilao: v('dataLeilao'),
     valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
-    arrematador: v('arrematador'), fonte: v('fonte'), link: v('link'), notas: v('notas'),
+    arrematador: v('arrematador'), fonte: v('fonte'),
+    link: v('link'), linkRgi: v('linkRgi'), notas: v('notas'),
   };
   if (!entrada.endereco.trim() && !entrada.matricula.trim()) {
     toast('Informe ao menos o endereço ou a matrícula.', true);
@@ -1361,12 +2005,12 @@ function init() {
 
   // filtros
   $('#busca').addEventListener('input', debounce(render, 200));
-  ['#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-periodo','#f-uf','#f-fonte'].forEach(s =>
-    $(s).addEventListener('change', render));
+  ['#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-financiamento','#f-periodo','#f-uf','#f-fonte']
+    .forEach(s => $(s).addEventListener('change', render));
   ['#f-vmin','#f-vmax'].forEach(s => $(s).addEventListener('input', debounce(render, 250)));
   $('#btn-limpar').addEventListener('click', () => {
-    ['#busca','#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-periodo','#f-uf','#f-fonte','#f-vmin','#f-vmax']
-      .forEach(s => $(s).value = '');
+    ['#busca','#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-financiamento','#f-periodo',
+     '#f-uf','#f-fonte','#f-vmin','#f-vmax'].forEach(s => $(s).value = '');
     render();
   });
 
@@ -1391,6 +2035,89 @@ function init() {
     baixar(`leiloes-${new Date().toISOString().slice(0,10)}.csv`, '﻿' + paraCSV(visiveis), 'text/csv;charset=utf-8');
   });
   $('#btn-pdf').addEventListener('click', () => window.print());
+
+  // sincronização
+  $('#btn-sync-salvar').addEventListener('click', async () => {
+    const tokenDigitado = $('#s-token').value.trim();
+    cfgSync.owner = $('#s-owner').value.trim();
+    cfgSync.repo  = $('#s-repo').value.trim();
+    cfgSync.autor = $('#s-autor').value.trim();
+    // Campo com máscara significa "manteve o token que já estava".
+    if (tokenDigitado && !/^•+$/.test(tokenDigitado)) cfgSync.token = tokenDigitado;
+    if (!cfgSync.owner || !cfgSync.repo || !cfgSync.token) {
+      $('#res-sync').hidden = false;
+      $('#res-sync').className = 'resultado erro';
+      $('#res-sync').innerHTML = '<strong>Faltam dados.</strong> Preencha usuário, repositório e token.';
+      return;
+    }
+    try { localStorage.setItem(CHAVE_SYNC, JSON.stringify(cfgSync)); } catch (e) {}
+    $('#s-token').value = '••••••••';
+    await sincronizar(false);
+  });
+  $('#btn-sync-agora').addEventListener('click', () => sincronizar(false));
+  $('#btn-sync-sair').addEventListener('click', () => {
+    if (!confirm('Remover o token deste navegador?\n\nSeus dados locais continuam intactos.')) return;
+    cfgSync.token = '';
+    try { localStorage.setItem(CHAVE_SYNC, JSON.stringify(cfgSync)); } catch (e) {}
+    $('#s-token').value = '';
+    toast('Token removido deste navegador.');
+  });
+
+  // padrão da matrícula (RGI)
+  $('#btn-rgi-detectar').addEventListener('click', () => {
+    const res = $('#res-rgi');
+    const { padrao, erro } = derivarPadraoRgi(
+      $('#rgi-exemplo').value, dados.map(r => r.codigoFonte).filter(Boolean));
+    if (erro) {
+      res.hidden = false; res.className = 'resultado erro';
+      res.innerHTML = `<strong>Não deu.</strong> ${esc(erro)}`;
+      return;
+    }
+    padraoRgi = padrao;
+    try { localStorage.setItem(CHAVE_RGI, padraoRgi); } catch (e) {}
+    $('#rgi-exemplo').value = '';
+    render();
+    toast('Padrão detectado — links de RGI ativados.');
+  });
+  $('#btn-rgi-limpar').addEventListener('click', () => {
+    padraoRgi = '';
+    try { localStorage.removeItem(CHAVE_RGI); } catch (e) {}
+    render();
+    toast('Padrão removido.');
+  });
+
+  // aba Atualizar dados — importação por arrastar ou escolher
+  const solta = $('#solta');
+  const inputCaixa = $('#arquivos-caixa');
+  $('#btn-escolher').addEventListener('click', () => inputCaixa.click());
+  inputCaixa.addEventListener('change', () => {
+    processarArquivosCaixa(inputCaixa.files);
+    inputCaixa.value = '';   // permite reenviar o mesmo arquivo depois
+  });
+  ['dragenter', 'dragover'].forEach(ev =>
+    solta.addEventListener(ev, e => { e.preventDefault(); solta.classList.add('sobre'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    solta.addEventListener(ev, e => { e.preventDefault(); solta.classList.remove('sobre'); }));
+  solta.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files.length) processarArquivosCaixa(e.dataTransfer.files);
+  });
+  // Sem isto, soltar o arquivo fora da área faz o navegador abri-lo e sair da página.
+  ['dragover', 'drop'].forEach(ev =>
+    window.addEventListener(ev, e => { if (!solta.contains(e.target)) e.preventDefault(); }));
+
+  $('#btn-abrir-pagina-caixa').addEventListener('click', () =>
+    window.open(PAGINA_CAIXA, '_blank', 'noopener'));
+  $('#btn-copiar-links').addEventListener('click', async () => {
+    const texto = UFS_BR.map(uf => `${uf}\t${URL_CAIXA_UF(uf)}`).join('\n');
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast('27 links copiados.');
+    } catch {
+      // clipboard exige contexto seguro; por file:// pode falhar
+      baixar('links-caixa.txt', texto, 'text/plain;charset=utf-8');
+      toast('Links salvos em links-caixa.txt.');
+    }
+  });
 
   // importar
   let arq = null;
@@ -1425,23 +2152,32 @@ function init() {
   });
 
   // backup
-  $('#btn-backup').addEventListener('click', () => {
-    baixar(`backup-leiloes-${new Date().toISOString().slice(0,10)}.json`,
-      JSON.stringify(dados, null, 2), 'application/json');
-    toast('Backup exportado.');
+  $('#btn-backup').addEventListener('click', exportarBackup);
+  $('#lembrete-agora').addEventListener('click', exportarBackup);
+  $('#lembrete-depois').addEventListener('click', () => {
+    // Só esconde nesta sessão: não registra backup, então volta a avisar depois.
+    $('#lembrete-backup').hidden = true;
   });
   $('#btn-restaurar-lbl').addEventListener('click', () => $('#restaurar').click());
   $('#restaurar').addEventListener('change', async e => {
     const f = e.target.files[0]; if (!f) return;
     const res = $('#res-backup');
     try {
-      const lista = JSON.parse(await f.text());
-      if (!Array.isArray(lista)) throw new Error('O arquivo não contém uma lista de registros.');
-      if (!confirm(`Restaurar ${lista.length} registro(s)?\n\nIsso substitui todos os dados atuais.`)) return;
+      const bruto = JSON.parse(await f.text());
+      // Aceita os dois formatos: o antigo era só a lista de imóveis; o atual
+      // traz também os cadastros de arrematador. Backups velhos continuam válidos.
+      const lista = Array.isArray(bruto) ? bruto : bruto.imoveis;
+      const fichas = Array.isArray(bruto) ? null : bruto.arrematadores;
+      if (!Array.isArray(lista)) throw new Error('O arquivo não parece ser um backup desta plataforma.');
+      if (!confirm(`Restaurar ${lista.length} imóvel(is)?\n\nIsso substitui todos os dados atuais.`)) return;
       dados = lista.map(r => normalizar(r));
+      if (Array.isArray(fichas)) perfis = fichas;
+      sincronizarPerfis();
       salvar(); popularSelects(); render();
       res.hidden = false; res.className = 'resultado';
-      res.innerHTML = `<strong>Backup restaurado.</strong> ${dados.length} registro(s) carregado(s).`;
+      res.innerHTML = `<strong>Backup restaurado.</strong> ${dados.length} imóvel(is)`
+        + (Array.isArray(fichas) ? ` e ${perfis.length} cadastro(s) de arrematador` : '')
+        + ' carregado(s).';
       toast('Backup restaurado.');
     } catch (err) {
       res.hidden = false; res.className = 'resultado erro';
@@ -1470,9 +2206,12 @@ function init() {
   });
 
   carregar();
+  carregarCfgSync();
   popularSelects();
   render();
+  verificarBackup();
   sincronizarFeed();
+  if (cfgSync.token) sincronizar(true);   // traz o trabalho feito em outra máquina
 }
 
 /* ==================== feed automático ==================== */
