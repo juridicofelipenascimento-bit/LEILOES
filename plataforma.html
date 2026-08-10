@@ -403,6 +403,25 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 .pn.clicavel { cursor: pointer; transition: border-color .12s, background .12s; }
 .pn.clicavel:hover { border-color: var(--marca); background: color-mix(in srgb, var(--marca) 9%, var(--bg)); }
 
+/* Aba do perfil */
+.perfil-cabecalho {
+  display: flex; align-items: center; gap: 17px; flex-wrap: wrap;
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: var(--raio); padding: 17px 20px; margin: 14px 0 14px;
+  box-shadow: var(--sombra);
+}
+.perfil-ident { flex: 1; min-width: 180px; }
+.perfil-ident h2 { margin: 0 0 3px; font-size: 20px; }
+.perfil-ident span { font-size: 12.5px; color: var(--texto-suave); }
+.pn.alerta { border-color: var(--alerta); }
+.pn.alerta strong { color: var(--alerta); }
+.tarefa.clicavel { cursor: pointer; border-radius: 7px; padding: 9px 8px; transition: background .12s; }
+.tarefa.clicavel:hover { background: color-mix(in srgb, var(--marca) 10%, transparent); }
+.tarefa .ir { color: var(--texto-suave); font-size: 15px; flex: none; }
+.tarefa.clicavel:hover .ir { color: var(--marca); }
+.lista-logs { margin: 0; padding-left: 17px; font-size: 12.5px; color: var(--texto-suave); line-height: 1.75; }
+.lista-logs strong { color: var(--texto); }
+
 /* Tela de entrada */
 .lista-usuarios { display: flex; flex-direction: column; gap: 8px; }
 .cartao-usuario {
@@ -606,6 +625,7 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   <button class="aba" data-p="atualizar">Atualizar dados</button>
   <button class="aba" data-p="importar">Importar</button>
   <button class="aba" data-p="backup">Backup e dados</button>
+  <button class="aba" data-p="perfil">Meu perfil</button>
 </nav>
 
 <div id="lembrete-backup" class="lembrete" hidden>
@@ -651,6 +671,7 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
         <option value="sim">Financiamento: Sim</option>
         <option value="nao">Financiamento: Não</option>
       </select>
+      <select id="f-responsavel"><option value="">Responsável: todos</option></select>
       <select id="f-ocupacao"><option value="">Ocupação: todas</option></select>
       <select id="f-uf"><option value="">Todas as UFs</option></select>
       <select id="f-fonte"><option value="">Todas as fontes</option></select>
@@ -710,6 +731,12 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   </div>
 
   <div class="sel-grupo">
+    <span class="sel-ico">👤</span>
+    <select id="sel-resp-valor"></select>
+    <button class="sel-btn" id="sel-aplicar-resp">Atribuir</button>
+  </div>
+
+  <div class="sel-grupo">
     <button class="sel-btn" id="sel-lidas">✓ Lidas</button>
     <button class="sel-btn" id="sel-nao-lidas">◔ Não lidas</button>
   </div>
@@ -717,6 +744,11 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   <div class="sel-div"></div>
   <button class="sel-fechar" id="sel-limpar" title="Limpar seleção (Esc)">✕</button>
 </div>
+
+<!-- ================= MEU PERFIL ================= -->
+<section id="p-perfil" class="painel">
+  <div id="conteudo-perfil"></div>
+</section>
 
 <!-- ============ FICHA DO IMÓVEL (aberta ao clicar numa linha) ============ -->
 <section id="p-imovel" class="painel">
@@ -1238,6 +1270,7 @@ function normalizar(r, anterior, preservarVazios) {
     link:           txt(r.link, base.link),
     linkRgi:        txt(r.linkRgi, base.linkRgi),
     contato:        txt(r.contato, base.contato),
+    responsavel:    txt(r.responsavel, base.responsavel),
     notas:          txt(r.notas, base.notas),
     lida:           r.lida !== undefined ? !!r.lida : (base.lida ?? false),
     historico:      base.historico || r.historico || [],
@@ -1284,6 +1317,7 @@ function filtrar() {
   const etapa   = $('#f-etapa').value;
   const periodo = $('#f-periodo').value;
   const ocup    = $('#f-ocupacao').value;
+  const resp    = $('#f-responsavel').value;
   const fin     = $('#f-financiamento').value;
   const uf      = $('#f-uf').value;
   const fonte   = $('#f-fonte').value;
@@ -1297,6 +1331,8 @@ function filtrar() {
     if (status && r.status !== status) return false;
     if (etapa && r.etapa !== etapa) return false;
     if (ocup && r.ocupacao !== ocup) return false;
+    if (resp === '__sem' && r.responsavel) return false;
+    if (resp && resp !== '__sem' && r.responsavel !== resp) return false;
     if (fin === 'sim' && !r.financiavel) return false;
     if (fin === 'nao' && r.financiavel) return false;
     if (uf && r.estado !== uf) return false;
@@ -1387,6 +1423,30 @@ function marcarFiltrosAtivos() {
     el.classList.toggle('filtro-ativo', !!el.value));
 }
 
+/** Mantém as listas de responsável (filtro e lote) em dia com a equipe. */
+function popularResponsaveis() {
+  const nomes = [...new Set([
+    ...usuarios.map(u => u.nome),
+    ...dados.map(r => r.responsavel).filter(Boolean),
+  ])].sort();
+
+  const lote = $('#sel-resp-valor');
+  if (lote) {
+    const atual = lote.value;
+    lote.innerHTML = '<option value="">— remover responsável —</option>'
+      + nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    lote.value = atual;
+  }
+  const filtro = $('#f-responsavel');
+  if (filtro) {
+    const atual = filtro.value;
+    filtro.innerHTML = '<option value="">Responsável: todos</option>'
+      + '<option value="__sem">— sem responsável —</option>'
+      + nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    filtro.value = atual;
+  }
+}
+
 /** Marca no cabeçalho qual coluna ordena e em que sentido. */
 function atualizarSetas() {
   $$('th[data-ord]').forEach(th => {
@@ -1421,6 +1481,7 @@ function render() {
   else if (aba === 'timeline') renderTimeline();
   else if (aba === 'arrematadores') renderPerfis();
   else if (aba === 'atualizar') { renderUFs(); renderRgi(); }
+  else if (aba === 'perfil') renderPerfilAba();
 
   $('#resumo-topo').textContent =
     `${visiveis.length} de ${dados.length} imóveis · ${dados.filter(r => !r.lida).length} não lidos`;
@@ -1646,6 +1707,7 @@ function popularSelects() {
   preencher($('#f-status'), Object.keys(STATUS), STATUS);
   preencher($('#f-etapa'), Object.keys(ETAPAS), ETAPAS);
   preencher($('#f-ocupacao'), Object.keys(OCUPACAO), OCUPACAO);
+  popularResponsaveis();
   preencher($('#f-uf'), [...new Set(dados.map(r => r.estado).filter(Boolean))].sort());
   preencher($('#f-fonte'), [...new Set(dados.map(r => r.fonte).filter(Boolean))].sort());
 }
@@ -1697,6 +1759,14 @@ function mostrarModal(r) {
       ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
       ${campo('fonte', 'Fonte', 'text', r.fonte)}
       ${campo('contato', 'Contato do leiloeiro', 'text', r.contato, 'telefone, e-mail ou site do edital')}
+      <label>Responsável
+        <select id="m-responsavel">
+          <option value="">— sem responsável —</option>
+          ${usuarios.map(u => `<option value="${esc(u.nome)}" ${r.responsavel === u.nome ? 'selected' : ''}>${esc(u.nome)}</option>`).join('')}
+          ${r.responsavel && !usuarios.some(u => u.nome === r.responsavel)
+            ? `<option value="${esc(r.responsavel)}" selected>${esc(r.responsavel)} (fora da equipe)</option>` : ''}
+        </select>
+      </label>
       <label class="full">Link do edital / anúncio
         ${r.link ? `<a class="link-imovel" href="${esc(r.link)}" target="_blank" rel="noopener"
              style="font-size:12px;margin-bottom:2px">Abrir a página do imóvel ↗ — lá estão a data do leilão, o edital e a matrícula (RGI) para download</a>` : ''}
@@ -1772,7 +1842,9 @@ function entrarComo(id) {
   salvarUsuarios();
   registrar('Entrou no sistema');
   aplicarPerfilNoTopo();
+  popularResponsaveis();
   fecharModal();
+  abrirPerfilUsuario();      // entra já na aba do perfil, mostrando a carteira
   toast(`Olá, ${u.nome.split(' ')[0]}.`);
 }
 
@@ -1782,6 +1854,7 @@ function sairDoPerfil() {
   try { localStorage.removeItem(CHAVE_PERFIL); } catch (e) {}
   aplicarPerfilNoTopo();
   fecharModal();
+  renderPerfilAba();
   toast('Sessão encerrada.');
 }
 
@@ -2167,45 +2240,6 @@ function graficoEquipe() {
     </div>`).join('')}</div>`;
 }
 
-/** Detalhe aberto ao clicar num dos números do perfil. */
-function detalharPerfil(qual) {
-  const alvo = $('#pu-detalhe');
-  if (!alvo) return;
-  const meu = perfil.nome || 'sem identificação';
-  const item = (t, s) => `<li>${esc(t)}${s ? ` <span class="end-s">${esc(s)}</span>` : ''}</li>`;
-  let titulo = '', corpo = '';
-
-  if (qual === 'tarefas') {
-    titulo = 'Tarefas em aberto';
-    const abertas = [];
-    dados.forEach(r => (r.tarefas || []).forEach(t => {
-      if (!t.feita) abertas.push({ r, t, atraso: t.prazo ? diasAte(t.prazo) : null });
-    }));
-    abertas.sort((a, b) => (a.atraso ?? 9e9) - (b.atraso ?? 9e9));
-    corpo = abertas.length
-      ? `<ul>${abertas.slice(0, 30).map(({ r, t, atraso }) => item(t.titulo,
-          `${r.endereco}${t.prazo ? ` · ${dataBr(t.prazo)}` : ''}${atraso !== null && atraso < 0 ? ' · ATRASADA' : ''}`)).join('')}</ul>`
-      : '<p class="ficha-vazio">Nenhuma tarefa em aberto.</p>';
-  } else if (qual === 'logs') {
-    titulo = 'Registro de atividade';
-    corpo = logs.length
-      ? `<ul>${logs.slice(0, 40).map(l => item(`${l.quem} — ${l.acao}`,
-          `${l.detalhe ? l.detalhe + ' · ' : ''}${new Date(l.em).toLocaleString('pt-BR')}`)).join('')}</ul>`
-      : '<p class="ficha-vazio">Nada registrado ainda.</p>';
-  } else {
-    const re = qual === 'cadastrados' ? /criado manualmente|importado em lote/i : /marcado como lido/i;
-    titulo = qual === 'cadastrados' ? 'Imóveis cadastrados por você' : 'Imóveis consultados por você';
-    const meus = logs.filter(l => l.quem === meu && re.test(l.acao));
-    corpo = meus.length
-      ? `<ul>${meus.slice(0, 40).map(l => item(l.acao,
-          `${l.detalhe ? l.detalhe + ' · ' : ''}${new Date(l.em).toLocaleString('pt-BR')}`)).join('')}</ul>`
-      : '<p class="ficha-vazio">Nada registrado com o seu nome ainda.</p>';
-  }
-
-  alvo.innerHTML = `<h4>${titulo}</h4>${corpo}`;
-  alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
 /** Tela de entrada: escolher quem está operando, ou cadastrar alguém. */
 function abrirLogin() {
   fecharModal();
@@ -2267,109 +2301,229 @@ function abrirLogin() {
   });
 }
 
-function abrirPerfilUsuario() {
-  if (!perfil.id) return abrirLogin();     // sem ninguém identificado, pede login
-  fecharModal();
-  const meus = dados.filter(r => r.responsavel && r.responsavel === perfil.nome);
-  const tarefasAbertas = dados.reduce((s, r) =>
-    s + (r.tarefas || []).filter(t => !t.feita).length, 0);
+/**
+ * Perfil como aba, não como janela: aqui o operador vê a carteira dele —
+ * imóveis sob sua responsabilidade e tarefas — e tudo é clicável, levando
+ * direto à ficha do imóvel.
+ */
+function renderPerfilAba() {
+  const alvo = $('#conteudo-perfil');
+  if (!alvo) return;
 
-  const html = `<div class="overlay" id="overlay"><div class="modal" role="dialog" aria-modal="true">
-    <h2>Meu perfil</h2>
-    <div class="sub">Identifica quem fez cada coisa no registro de atividade.</div>
+  if (!perfil.id) {
+    alvo.innerHTML = `<div class="caixa" style="max-width:520px">
+      <h3>Ninguém identificado</h3>
+      <p>Entre com um perfil para ver sua carteira de imóveis e suas tarefas.</p>
+      <button class="btn btn-p" id="pa-entrar">Entrar</button>
+    </div>`;
+    $('#pa-entrar').addEventListener('click', abrirLogin);
+    return;
+  }
 
-    <div class="perfil-edicao">
+  const meus = dados.filter(r => r.responsavel === perfil.nome);
+  const minhasTarefas = [];
+  dados.forEach(r => (r.tarefas || []).forEach((t, i) => {
+    if (!t.feita && (r.responsavel === perfil.nome || !r.responsavel)) {
+      minhasTarefas.push({ r, t, i, dias: t.prazo ? diasAte(t.prazo) : null });
+    }
+  }));
+  minhasTarefas.sort((a, b) => (a.dias ?? 9e9) - (b.dias ?? 9e9));
+  const atrasadas = minhasTarefas.filter(x => x.dias !== null && x.dias < 0).length;
+
+  alvo.innerHTML = `
+    <div class="perfil-cabecalho">
       <div class="perfil-foto" id="pu-foto"
            style="${perfil.foto ? `background-image:url('${esc(perfil.foto)}')` : ''}">
-        ${perfil.foto ? '' : esc((perfil.nome || '?').charAt(0).toUpperCase() || '?')}
+        ${perfil.foto ? '' : esc((perfil.nome || '?').charAt(0).toUpperCase())}
       </div>
-      <div class="perfil-campos">
-        <label>Nome<input type="text" id="pu-nome" value="${esc(perfil.nome)}" placeholder="Como você assina"></label>
-        <label>Cargo / função<input type="text" id="pu-cargo" value="${esc(perfil.cargo)}" placeholder="ex: Advogado responsável"></label>
-        <div class="acoes-barra" style="margin-top:8px">
-          <button class="btn" id="pu-escolher-foto">Escolher foto</button>
-          ${perfil.foto ? '<button class="btn btn-ghost" id="pu-tirar-foto">Remover foto</button>' : ''}
-          <input type="file" id="pu-arquivo-foto" accept="image/*" hidden>
-        </div>
+      <div class="perfil-ident">
+        <h2>${esc(perfil.nome)}</h2>
+        <span>${esc(perfil.cargo || 'sem cargo')} · CPF ●●●.${esc(perfil.id.slice(0,3))}.${esc(perfil.id.slice(3))}●●</span>
       </div>
-    </div>
-
-    <div class="aviso-box" style="margin-top:16px">
-      <strong>Por que não há senha aqui.</strong> Esta plataforma roda inteira no seu
-      navegador, sem servidor que verifique nada. Uma senha guardada aqui ficaria
-      legível para qualquer pessoa que abrisse as ferramentas do navegador, e não
-      impediria ninguém de ler os dados — daria <em>aparência</em> de proteção sem
-      proteção nenhuma, que é pior do que não ter.
-      <br><br>
-      O que protege de verdade: a <strong>senha do Windows</strong> e bloquear a tela
-      (tecla Windows + L) ao se afastar. Se precisar de acesso por usuário com senha
-      real, isso exige um servidor com autenticação — dá para fazer, é outro projeto.
+      <div class="acoes-barra">
+        <button class="btn" id="pu-editar">Editar dados</button>
+        <button class="btn btn-perigo" id="pu-sair">Sair / trocar</button>
+      </div>
     </div>
 
     <div class="perfil-nums">
+      <div class="pn clicavel" data-ver="responsavel"><strong>${meus.length}</strong><span>imóveis sob sua responsabilidade</span></div>
+      <div class="pn clicavel ${atrasadas ? 'alerta' : ''}" data-ver="tarefas">
+        <strong>${minhasTarefas.length}</strong><span>tarefas em aberto${atrasadas ? ` · ${atrasadas} atrasada(s)` : ''}</span></div>
       <div class="pn clicavel" data-ver="cadastrados"><strong>${contarPor('cadastrou')}</strong><span>imóveis cadastrados</span></div>
       <div class="pn clicavel" data-ver="consultados"><strong>${contarPor('consultou')}</strong><span>imóveis consultados</span></div>
-      <div class="pn clicavel" data-ver="tarefas"><strong>${tarefasAbertas}</strong><span>tarefas em aberto</span></div>
-      <div class="pn clicavel" data-ver="logs"><strong>${logs.length}</strong><span>registro de atividade</span></div>
     </div>
 
-    <div class="hist" id="pu-detalhe"></div>
+    <div class="ficha-grade" style="margin-top:16px">
 
-    <div class="hist">
-      <h4>Desempenho da equipe</h4>
-      <p class="ficha-vazio" style="margin:0 0 10px">Visível a todos os perfis. Conta as ações registradas por pessoa.</p>
-      <div id="grafico-equipe">${graficoEquipe()}</div>
+      <div class="caixa">
+        <h3>Minhas tarefas ${atrasadas ? `<span class="contador-pend">${atrasadas} atrasada(s)</span>` : ''}</h3>
+        ${minhasTarefas.length ? `<div class="lista-tarefas">
+          ${minhasTarefas.slice(0, 40).map(({ r, t, dias }) => `
+            <div class="tarefa clicavel ${dias !== null && dias < 0 ? 'atrasada' : ''}" data-imovel="${r.id}">
+              <div class="tarefa-txt">
+                <div>${esc(t.titulo)}</div>
+                <span class="end-s">${esc(r.endereco)}${
+                  t.prazo ? ` · ${dataBr(t.prazo)}` : ''}${
+                  dias !== null && dias < 0 ? ` · atrasada ${-dias} dia(s)` : ''}</span>
+              </div>
+              <span class="ir">→</span>
+            </div>`).join('')}
+        </div>` : '<p class="ficha-vazio">Nenhuma tarefa em aberto.</p>'}
+      </div>
+
+      <div class="caixa">
+        <h3>Sob minha responsabilidade</h3>
+        ${meus.length ? `<div class="lista-tarefas">
+          ${meus.slice(0, 40).map(r => {
+            const p = prazoLeilao(r);
+            return `<div class="tarefa clicavel" data-imovel="${r.id}">
+              <div class="tarefa-txt">
+                <div>${esc(r.endereco)}</div>
+                <span class="end-s">${esc([r.municipio, r.estado].filter(Boolean).join('/'))}
+                  · ${ETAPAS[r.etapa]}${p && p.nivel ? ` · leilão em ${p.d} dia(s)` : ''}</span>
+              </div>
+              <span class="ir">→</span>
+            </div>`;
+          }).join('')}
+        </div>` : `<p class="ficha-vazio">Nenhum imóvel atribuído a você.</p>
+          <p class="ficha-vazio">Para atribuir: selecione imóveis no Painel e use
+          <strong>👤 Atribuir</strong> na barra de seleção, ou abra um imóvel e
+          escolha o responsável.</p>`}
+      </div>
+
+      <div class="caixa">
+        <h3>Desempenho da equipe</h3>
+        <p class="ficha-vazio" style="margin:0 0 10px">Visível a todos. Conta as ações registradas por pessoa.</p>
+        <div id="grafico-equipe">${graficoEquipe()}</div>
+      </div>
+
+      <div class="caixa">
+        <h3>Registro de atividade</h3>
+        ${logs.length ? `<ul class="lista-logs">${logs.slice(0, 30).map(l => `
+          <li><strong>${esc(l.quem)}</strong> — ${esc(l.acao)}
+          ${l.detalhe ? `<span class="end-s">${esc(l.detalhe)}</span>` : ''}
+          <span class="end-s">${new Date(l.em).toLocaleString('pt-BR')}</span></li>`).join('')}</ul>`
+          : '<p class="ficha-vazio">Nada registrado ainda.</p>'}
+      </div>
+
     </div>
 
-    <div class="modal-rodape">
-      <button class="btn btn-perigo" id="pu-sair">Sair / trocar de perfil</button>
-      <span class="esp"></span>
-      <button class="btn" id="pu-fechar">Fechar</button>
-      <button class="btn btn-p" id="pu-salvar">Salvar</button>
-    </div>
-  </div></div>`;
+    <div class="caixa" style="max-width:none; margin-top:14px">
+      <div class="aviso-box" style="margin:0">
+        <strong>Este perfil identifica, não protege.</strong> Não há senha porque a
+        plataforma roda só no navegador — uma senha aqui seria legível por qualquer
+        pessoa que abrisse as ferramentas do navegador. Para trancar de verdade, use a
+        senha do Windows e bloqueie a tela (Windows + L) ao se afastar.
+      </div>
+    </div>`;
 
-  document.body.insertAdjacentHTML('beforeend', html);
+  // Tarefas e imóveis levam à ficha do imóvel.
+  $$('#conteudo-perfil .tarefa.clicavel').forEach(el =>
+    el.addEventListener('click', () => abrirImovel(el.dataset.imovel)));
+
+  $$('#conteudo-perfil .pn.clicavel').forEach(el =>
+    el.addEventListener('click', () => irParaMinhaCarteira(el.dataset.ver)));
+
+  $('#pu-sair').addEventListener('click', sairDoPerfil);
+  $('#pu-editar').addEventListener('click', editarPerfil);
+}
+
+/** Clicar num número leva ao Painel já filtrado. */
+function irParaMinhaCarteira(qual) {
+  if (qual === 'responsavel') {
+    $$('.aba').forEach(x => x.classList.remove('ativa'));
+    $$('.painel').forEach(x => x.classList.remove('ativo'));
+    document.querySelector('.aba[data-p="painel"]').classList.add('ativa');
+    $('#p-painel').classList.add('ativo');
+    $('#f-responsavel').value = perfil.nome;
+    render();
+    toast(`Mostrando os imóveis sob responsabilidade de ${perfil.nome.split(' ')[0]}.`);
+  } else {
+    // Os demais já estão listados nesta própria aba.
+    document.querySelector('#conteudo-perfil .ficha-grade')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+/** Edição dos dados do perfil, em janela pequena. */
+function editarPerfil() {
+  fecharModal();
+  document.body.insertAdjacentHTML('beforeend',
+    `<div class="overlay" id="overlay"><div class="modal" style="max-width:480px">
+      <h2>Editar perfil</h2>
+      <div class="sub">CPF ●●●.${esc(perfil.id.slice(0,3))}.${esc(perfil.id.slice(3))}●● — não muda</div>
+      <div class="perfil-edicao">
+        <div class="perfil-foto" style="${perfil.foto ? `background-image:url('${esc(perfil.foto)}')` : ''}">
+          ${perfil.foto ? '' : esc(perfil.nome.charAt(0).toUpperCase())}
+        </div>
+        <div class="perfil-campos">
+          <label>Nome<input type="text" id="pu-nome" value="${esc(perfil.nome)}"></label>
+          <label>Cargo / função<input type="text" id="pu-cargo" value="${esc(perfil.cargo)}"></label>
+          <div class="acoes-barra" style="margin-top:8px">
+            <button class="btn" id="pu-escolher-foto">Escolher foto</button>
+            ${perfil.foto ? '<button class="btn btn-ghost" id="pu-tirar-foto">Remover foto</button>' : ''}
+            <input type="file" id="pu-arquivo-foto" accept="image/*" hidden>
+          </div>
+        </div>
+      </div>
+      <div class="modal-rodape">
+        <span class="esp"></span>
+        <button class="btn" id="pu-cancelar">Cancelar</button>
+        <button class="btn btn-p" id="pu-salvar">Salvar</button>
+      </div>
+    </div></div>`);
 
   $('#pu-salvar').addEventListener('click', () => {
     const nome = $('#pu-nome').value.trim();
     if (!nome) { toast('O nome não pode ficar vazio.', true); return; }
+    const antes = perfil.nome;
     perfil.nome = nome;
     perfil.cargo = $('#pu-cargo').value.trim();
-    // perfil é o mesmo objeto dentro de `usuarios`, então gravar a lista basta.
+    // Renomear a pessoa não pode órfãos os imóveis dela.
+    if (antes && antes !== nome) {
+      dados.forEach(r => { if (r.responsavel === antes) r.responsavel = nome; });
+      salvar();
+    }
     salvarUsuarios();
     registrar('Perfil atualizado', perfil.nome);
-    aplicarPerfilNoTopo();
-    fecharModal();
+    aplicarPerfilNoTopo(); popularResponsaveis();
+    fecharModal(); renderPerfilAba();
     toast('Perfil salvo.');
   });
-  $('#pu-sair').addEventListener('click', sairDoPerfil);
-  $$('#overlay .pn.clicavel').forEach(el =>
-    el.addEventListener('click', () => detalharPerfil(el.dataset.ver)));
-  $('#pu-fechar').addEventListener('click', fecharModal);
+  $('#pu-cancelar').addEventListener('click', fecharModal);
   $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') fecharModal(); });
 
   $('#pu-escolher-foto').addEventListener('click', () => $('#pu-arquivo-foto').click());
-  $('#pu-arquivo-foto').addEventListener('change', async (e) => {
+  $('#pu-arquivo-foto').addEventListener('change', (e) => {
     const f = e.target.files[0];
     if (!f) return;
     if (f.size > 2 * 1024 * 1024) { toast('Imagem muito grande — use até 2 MB.', true); return; }
-    // Guardada como texto no próprio navegador; não sai daqui.
     const leitor = new FileReader();
     leitor.onload = () => {
       perfil.foto = leitor.result;
-      salvarUsuarios();
-      aplicarPerfilNoTopo();
-      abrirPerfilUsuario();
+      salvarUsuarios(); aplicarPerfilNoTopo();
+      fecharModal(); editarPerfil(); renderPerfilAba();
       toast('Foto atualizada.');
     };
     leitor.readAsDataURL(f);
   });
   $('#pu-tirar-foto')?.addEventListener('click', () => {
     perfil.foto = '';
-    salvarUsuarios();
-    aplicarPerfilNoTopo(); abrirPerfilUsuario();
+    salvarUsuarios(); aplicarPerfilNoTopo();
+    fecharModal(); editarPerfil(); renderPerfilAba();
   });
+}
+
+/** O botão do topo leva à aba, em vez de abrir janela. */
+function abrirPerfilUsuario() {
+  if (!perfil.id) return abrirLogin();
+  $$('.aba').forEach(x => x.classList.remove('ativa'));
+  $$('.painel').forEach(x => x.classList.remove('ativo'));
+  document.querySelector('.aba[data-p="perfil"]').classList.add('ativa');
+  $('#p-perfil').classList.add('ativo');
+  window.scrollTo(0, 0);
+  renderPerfilAba();
 }
 
 /* ---------- ficha do ocupante ---------- */
@@ -2623,7 +2777,7 @@ function chaveTrabalho(r) {
 /** Um registro só entra no pacote se o usuário mexeu nele. */
 function foiTrabalhado(r) {
   return !!(r.lida || r.notas || r.arrematador || r.dataLeilao || r.valorLance ||
-            r.linkRgi || r.contato || r.matricula || r.processo || r.edital ||
+            r.linkRgi || r.contato || r.responsavel || r.matricula || r.processo || r.edital ||
             (r.tarefas && r.tarefas.length) || (r.processos && r.processos.length) ||
             (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
             (r.etapa && r.etapa !== 'novo') ||
@@ -2632,8 +2786,8 @@ function foiTrabalhado(r) {
 }
 
 const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador',
-  'dataLeilao','valorLance','linkRgi','contato','matricula','processo','edital','status',
-  'tarefas','processos','historico'];
+  'dataLeilao','valorLance','linkRgi','contato','responsavel','matricula','processo','edital',
+  'status','tarefas','processos','historico'];
 
 function extrairTrabalho() {
   const itens = { ...orfaos };
@@ -3117,7 +3271,8 @@ function salvarModal() {
     valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
     arrematador: v('arrematador'), fonte: v('fonte'),
-    link: v('link'), linkRgi: v('linkRgi'), contato: v('contato'), notas: v('notas'),
+    link: v('link'), linkRgi: v('linkRgi'), contato: v('contato'),
+    responsavel: v('responsavel'), notas: v('notas'),
   };
   if (!entrada.endereco.trim() && !entrada.matricula.trim()) {
     toast('Informe ao menos o endereço ou a matrícula.', true);
@@ -3283,12 +3438,12 @@ function init() {
 
   // filtros
   $('#busca').addEventListener('input', debounce(render, 200));
-  ['#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-financiamento','#f-periodo','#f-uf','#f-fonte']
-    .forEach(s => $(s).addEventListener('change', render));
+  ['#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-responsavel','#f-financiamento',
+   '#f-periodo','#f-uf','#f-fonte'].forEach(s => $(s).addEventListener('change', render));
   ['#f-vmin','#f-vmax'].forEach(s => $(s).addEventListener('input', debounce(render, 250)));
   $('#btn-limpar').addEventListener('click', () => {
-    ['#busca','#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-financiamento','#f-periodo',
-     '#f-uf','#f-fonte','#f-vmin','#f-vmax'].forEach(s => $(s).value = '');
+    ['#busca','#f-leitura','#f-status','#f-etapa','#f-ocupacao','#f-responsavel','#f-financiamento',
+     '#f-periodo','#f-uf','#f-fonte','#f-vmin','#f-vmax'].forEach(s => $(s).value = '');
     render();
   });
 
@@ -3468,6 +3623,14 @@ function init() {
     const et = $('#sel-etapa-valor').value;
     if (!confirm(`Mudar ${selecionados.size} imóvel(is) para "${ETAPAS[et]}"?`)) return;
     aplicarEmLote(r => { r.etapa = et; }, `Etapa: ${ETAPAS[et]}`);
+  });
+
+  $('#sel-aplicar-resp').addEventListener('click', () => {
+    const nome = $('#sel-resp-valor').value;
+    const rot = nome || 'ninguém';
+    if (!confirm(`Atribuir ${selecionados.size} imóvel(is) a ${rot}?`)) return;
+    aplicarEmLote(r => { r.responsavel = nome; },
+      nome ? `Responsável: ${nome}` : 'Responsável removido');
   });
 
   $('#sel-lidas').addEventListener('click', () =>
