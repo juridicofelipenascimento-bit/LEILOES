@@ -142,6 +142,89 @@ tr.nao-lida td:nth-child(2) { font-weight: 700; }
 tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
 .ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--marca); display: inline-block; }
 .col-ponto { width: 26px; text-align: center; }
+/* ---------- seleção múltipla ---------- */
+.col-sel { width: 40px; text-align: center; }
+.col-sel input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; margin: 0; padding: 0; cursor: pointer;
+  border: 2px solid var(--borda); border-radius: 5px;
+  background: var(--bg); position: relative; flex: none;
+  transition: border-color .12s, background .12s;
+}
+.col-sel input[type="checkbox"]:hover { border-color: var(--marca); }
+.col-sel input[type="checkbox"]:checked { background: var(--marca); border-color: var(--marca); }
+/* O "risco" do visto é desenhado com bordas giradas — sem imagem externa. */
+.col-sel input[type="checkbox"]:checked::after {
+  content: ''; position: absolute; left: 4px; top: 0.5px;
+  width: 4px; height: 9px; border: solid #06231f;
+  border-width: 0 2.5px 2.5px 0; transform: rotate(43deg);
+}
+.col-sel input[type="checkbox"]:indeterminate { background: var(--marca); border-color: var(--marca); }
+.col-sel input[type="checkbox"]:indeterminate::after {
+  content: ''; position: absolute; left: 2.5px; top: 5.5px;
+  width: 8px; height: 0; border-top: 2.5px solid #06231f;
+}
+
+tr.selecionada { background: color-mix(in srgb, var(--marca) 11%, transparent) !important; }
+tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
+
+/* Barra flutuante: não empurra a tabela e acompanha a rolagem. */
+.barra-sel {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 11px 9px 9px; z-index: 60;
+  background: var(--superficie);
+  border: 1px solid var(--borda); border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.16);
+  animation: sobe .18s ease-out;
+  max-width: calc(100vw - 24px);
+}
+@keyframes sobe { from { opacity: 0; transform: translate(-50%, 14px); }
+                  to   { opacity: 1; transform: translate(-50%, 0); } }
+
+.sel-contador { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+.sel-num {
+  min-width: 30px; height: 30px; padding: 0 7px; border-radius: 9px;
+  background: var(--marca); color: #06231f;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px;
+}
+.sel-rot { font-size: 12.5px; color: var(--texto-suave); white-space: nowrap; }
+.sel-div { width: 1px; height: 26px; background: var(--borda); }
+
+.sel-grupo {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--bg); border: 1px solid var(--borda);
+  border-radius: 10px; padding: 3px 4px 3px 8px;
+}
+.sel-ico { font-size: 13px; opacity: .8; }
+.barra-sel input[type="date"], .barra-sel select {
+  width: auto; border: none; background: transparent; padding: 5px 4px; font-size: 12.5px;
+}
+.barra-sel input[type="date"]:focus, .barra-sel select:focus { outline: none; }
+
+.sel-btn {
+  border: none; border-radius: 7px; padding: 6px 11px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  background: var(--superficie-2); color: var(--texto); transition: background .12s, color .12s;
+}
+.sel-btn:hover { background: var(--marca); color: #06231f; }
+.sel-btn.destaque { background: var(--marca); color: #06231f; }
+.sel-btn.destaque:hover { background: var(--marca-escura); color: #fff; }
+.sel-btn.solto { background: var(--bg); border: 1px solid var(--borda); }
+
+.sel-fechar {
+  border: none; background: transparent; color: var(--texto-suave);
+  font-size: 15px; cursor: pointer; padding: 5px 8px; border-radius: 7px; line-height: 1;
+}
+.sel-fechar:hover { background: var(--alerta); color: #fff; }
+
+@media (max-width: 760px) {
+  .barra-sel { left: 12px; right: 12px; transform: none; bottom: 12px; justify-content: center; }
+  @keyframes sobe { from { opacity: 0; transform: translateY(14px); }
+                    to   { opacity: 1; transform: translateY(0); } }
+  .sel-div { display: none; }
+}
 .end-p { font-weight: 600; }
 .end-s { font-size: 11.5px; color: var(--texto-suave); margin-top: 2px; }
 .mapa { font-size: 11.5px; color: var(--primaria); text-decoration: none; }
@@ -189,6 +272,42 @@ tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
    muita gente tem "efeitos de animação" desligado sem saber, e isso silenciava
    um alerta operacional pedido de propósito. Desliga pelo botão da barra. */
 :root[data-piscar="nao"] .prazo-7 { animation: none; }
+
+/* ---------- ficha do imóvel ---------- */
+.ficha-topo { display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap; margin: 14px 0 18px; }
+.ficha-topo h2 { margin: 0 0 4px; font-size: 20px; }
+.ficha-sub { color: var(--texto-suave); font-size: 13px; }
+.ficha-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; align-items: center; }
+.ficha-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px; align-items: start; }
+.ficha-grade .caixa { max-width: none; margin: 0; }
+.ficha-grade h3 { display: flex; align-items: center; gap: 8px; }
+.dado { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--borda); font-size: 13px; }
+.dado:last-of-type { border-bottom: none; }
+.dado-r { color: var(--texto-suave); min-width: 130px; flex: none; }
+.dado-v { font-weight: 500; word-break: break-word; }
+.dado-v.desagio { color: var(--sucesso); }
+.ficha-links { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 13px; }
+.ficha-links .btn { text-decoration: none; }
+.ficha-vazio { color: var(--texto-suave); font-size: 13px; font-style: italic; margin: 6px 0 12px; }
+.ficha-nota { background: var(--bg); padding: 9px 12px; border-radius: 7px; font-size: 13px; margin: 8px 0; }
+.contador-pend { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+  background: color-mix(in srgb, var(--aviso) 22%, transparent); color: var(--aviso); }
+.lista-tarefas { margin-bottom: 12px; }
+.tarefa { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--borda); font-size: 13px; }
+.tarefa:last-child { border-bottom: none; }
+.tarefa-txt { flex: 1; }
+.tarefa.feita .tarefa-txt { opacity: .5; text-decoration: line-through; }
+.tarefa.atrasada .tarefa-txt > div { color: var(--alerta); font-weight: 600; }
+.tarefa input[type="checkbox"] { width: auto; flex: none; }
+.tk-apagar, .pr-apagar { background: none; border: none; cursor: pointer; opacity: .45; font-size: 13px; }
+.tk-apagar:hover, .pr-apagar:hover { opacity: 1; }
+.nova-linha { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.nova-linha input[type="text"] { flex: 1; min-width: 150px; }
+.nova-linha input[type="date"] { width: auto; }
+#fi-notas { margin-bottom: 10px; }
+.mais-linhas { padding: 14px; text-align: center; color: var(--texto-suave); font-size: 13px;
+  border-top: 1px solid var(--borda); }
 
 .kpi.clicavel { cursor: pointer; }
 .kpi.clicavel:hover { border-color: var(--alerta); }
@@ -404,6 +523,7 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
   <div class="tabela-wrap">
     <table>
       <thead><tr>
+        <th class="col-sel"><input type="checkbox" id="sel-todos" title="Selecionar todos os visíveis"></th>
         <th class="col-ponto"></th>
         <th data-ord="endereco">Imóvel</th>
         <th data-ord="dataLeilao">Data do leilão</th>
@@ -418,7 +538,42 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
       <tbody id="tbody"></tbody>
     </table>
     <p class="vazio" id="vazio" hidden>Nenhum imóvel encontrado com os filtros atuais.</p>
+    <p class="mais-linhas" id="mais-linhas" hidden></p>
   </div>
+</section>
+
+<!-- Barra de seleção: fora da tabela, porque ela tem rolagem própria e
+     recortaria um elemento de posição fixa. -->
+<div class="barra-sel" id="barra-sel" hidden>
+  <div class="sel-contador">
+    <span class="sel-num" id="sel-num">0</span>
+    <span class="sel-rot" id="sel-conta">selecionados</span>
+  </div>
+
+  <div class="sel-div"></div>
+
+  <div class="sel-grupo" title="Informe a data do edital e aplique a todos de uma vez">
+    <span class="sel-ico">📅</span>
+    <input type="date" id="sel-data">
+    <button class="sel-btn destaque" id="sel-aplicar-data">Definir data</button>
+  </div>
+
+  <div class="sel-grupo">
+    <span class="sel-ico">🎯</span>
+    <select id="sel-etapa-valor"></select>
+    <button class="sel-btn" id="sel-aplicar-etapa">Mover</button>
+  </div>
+
+  <button class="sel-btn solto" id="sel-lidas">✓ Marcar lidas</button>
+
+  <div class="sel-div"></div>
+  <button class="sel-fechar" id="sel-limpar" title="Limpar seleção">✕</button>
+</div>
+
+<!-- ============ FICHA DO IMÓVEL (aberta ao clicar numa linha) ============ -->
+<section id="p-imovel" class="painel">
+  <button class="btn" id="btn-voltar">← Voltar à lista</button>
+  <div id="ficha-imovel"></div>
 </section>
 
 <!-- ================= TIMELINE ================= -->
@@ -508,6 +663,28 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
       <button class="btn" id="btn-rgi-limpar">Limpar</button>
     </div>
     <div class="resultado" id="res-rgi" hidden></div>
+  </div>
+
+  <div class="caixa" style="max-width:none; margin-top:18px">
+    <h3>4. Link para o LEMIT (opcional)</h3>
+    <p>
+      Coloca um botão <strong>Consultar no LEMIT</strong> na ficha de cada imóvel.
+      É só navegação: abre a plataforma que você assina, com o endereço do imóvel
+      no endereço da consulta. Nada é buscado nem trazido de volta para cá —
+      a consulta é sua, feita no seu acesso e sob sua responsabilidade.
+    </p>
+    <p>
+      Cole abaixo o endereço de uma busca que você já tenha feito lá. Onde
+      aparecer o endereço do imóvel, escreva <code>{endereco}</code>; se a URL usar
+      a UF, escreva <code>{uf}</code>. Exemplo:<br>
+      <code>https://app.lemit.com.br/busca?q={endereco}</code>
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <input type="url" id="lemit-padrao" placeholder="https://.../busca?q={endereco}" style="flex:1; min-width:280px">
+      <button class="btn btn-p" id="btn-lemit-salvar">Salvar</button>
+      <button class="btn" id="btn-lemit-limpar">Remover</button>
+    </div>
+    <div class="resultado" id="res-lemit" hidden></div>
   </div>
 </section>
 
@@ -632,6 +809,7 @@ const CHAVE_TEMA = 'leiloes_tema';
 const CHAVE_BACKUP = 'leiloes_ultimo_backup';
 const CHAVE_RGI = 'leiloes_padrao_rgi';
 const CHAVE_PISCAR = 'leiloes_piscar';
+const CHAVE_LEMIT = 'leiloes_padrao_lemit';
 const CHAVE_SYNC = 'leiloes_sync_cfg';
 const CHAVE_ORFAOS = 'leiloes_orfaos';
 const DIAS_LEMBRETE = 14;
@@ -785,6 +963,7 @@ function carregar() {
     dados = JSON.parse(localStorage.getItem(CHAVE) || '[]');
     perfis = JSON.parse(localStorage.getItem(CHAVE_PERFIS) || '[]');
     padraoRgi = localStorage.getItem(CHAVE_RGI) || '';
+    padraoLemit = localStorage.getItem(CHAVE_LEMIT) || '';
   } catch (e) {
     storageOk = false;
     $('#aviso-storage').hidden = false;
@@ -885,6 +1064,8 @@ function normalizar(r, anterior, preservarVazios) {
     etapa:          ETAPAS[r.etapa] ? r.etapa : (base.etapa || 'novo'),
     ocupacao:       OCUPACAO[r.ocupacao] ? r.ocupacao : (base.ocupacao || 'nao_informado'),
     ocupante:       r.ocupante || base.ocupante || null,
+    tarefas:        r.tarefas || base.tarefas || [],
+    processos:      r.processos || base.processos || [],
     arrematador:    txt(r.arrematador, base.arrematador),
     fonte:          txt(r.fonte, base.fonte),
     link:           txt(r.link, base.link),
@@ -1037,15 +1218,27 @@ function atualizarSetas() {
   });
 }
 
+/** Qual aba está à vista — só ela é redesenhada. */
+function abaAtiva() {
+  const a = document.querySelector('.aba.ativa');
+  return a ? a.dataset.p : 'painel';
+}
+
 function render() {
   visiveis = ordenar(filtrar());
+  limiteLinhas = LOTE_LINHAS;   // filtro/ordem mudou: volta ao primeiro lote
   atualizarSetas();
-  renderKpis();
-  renderTabela();
-  renderTimeline();
-  renderPerfis();
-  renderUFs();
-  renderRgi();
+
+  // Redesenhar as seis abas a cada tecla digitada era o maior custo com
+  // milhares de imóveis. Agora só a aba visível é recalculada; as outras
+  // são refeitas quando você troca de aba.
+  const aba = abaAtiva();
+  renderBarraSel();   // fora do if: precisa sumir ao trocar de aba
+  if (aba === 'painel') { renderKpis(); renderTabela(); }
+  else if (aba === 'timeline') renderTimeline();
+  else if (aba === 'arrematadores') renderPerfis();
+  else if (aba === 'atualizar') { renderUFs(); renderRgi(); }
+
   $('#resumo-topo').textContent =
     `${visiveis.length} de ${dados.length} imóveis · ${dados.filter(r => !r.lida).length} não lidos`;
 }
@@ -1090,10 +1283,58 @@ function renderKpis() {
   }));
 }
 
+// Desenhar 8.000 linhas de uma vez trava o navegador por segundos. Mostramos
+// um lote e o restante sob demanda — a ordenação e os filtros continuam
+// valendo sobre a lista inteira, só a pintura é parcial.
+const LOTE_LINHAS = 150;
+let limiteLinhas = LOTE_LINHAS;
+
+// Imóveis marcados para edição em lote. Como o edital é o mesmo para dezenas
+// de imóveis, informar a data de uma vez economiza a maior parte do trabalho.
+const selecionados = new Set();
+
+function renderBarraSel() {
+  const barra = $('#barra-sel');
+  if (!barra) return;
+
+  // A barra vive fora da aba, então só aparece quando a lista está à vista.
+  barra.hidden = selecionados.size === 0 || abaAtiva() !== 'painel';
+
+  if (selecionados.size) {
+    $('#sel-num').textContent = selecionados.size;
+    $('#sel-conta').textContent = selecionados.size === 1
+      ? 'imóvel selecionado' : 'imóveis selecionados';
+  }
+
+  const todos = $('#sel-todos');
+  if (todos) {
+    const visiveisSel = visiveis.filter(r => selecionados.has(r.id)).length;
+    todos.checked = visiveis.length > 0 && visiveisSel === visiveis.length;
+    todos.indeterminate = visiveisSel > 0 && visiveisSel < visiveis.length;
+  }
+
+  // Realce das linhas marcadas, sem redesenhar a tabela inteira.
+  $$('#tbody tr[data-id]').forEach(tr =>
+    tr.classList.toggle('selecionada', selecionados.has(tr.dataset.id)));
+}
+
+/** Aplica uma alteração a todos os selecionados, de uma vez. */
+function aplicarEmLote(fn, descricao) {
+  let n = 0;
+  dados.forEach(r => {
+    if (!selecionados.has(r.id)) return;
+    fn(r); log(r, descricao); n++;
+  });
+  if (!n) return;
+  salvar(); popularSelects(); render();
+  toast(`${descricao} — ${n} imóvel(is).`);
+}
+
 function renderTabela() {
   const tb = $('#tbody');
   $('#vazio').hidden = visiveis.length > 0;
-  tb.innerHTML = visiveis.map(r => {
+  const mostrados = visiveis.slice(0, limiteLinhas);
+  tb.innerHTML = mostrados.map(r => {
     const d = diasAte(r.dataLeilao);
     const prazo = prazoLeilao(r);
     const urg = !!(prazo && prazo.nivel === 7);
@@ -1108,7 +1349,8 @@ function renderTabela() {
       const pct = (1 - refValor / r.valorAvaliacao) * 100;
       if (pct > 0) desagio = `<div class="desagio">−${pct.toFixed(1).replace('.', ',')}%</div>`;
     }
-    return `<tr data-id="${r.id}" class="${r.lida ? '' : 'nao-lida'} ${urg ? 'urgente' : ''}">
+    return `<tr data-id="${r.id}" class="${r.lida ? '' : 'nao-lida'} ${urg ? 'urgente' : ''} ${selecionados.has(r.id) ? 'selecionada' : ''}">
+      <td class="col-sel"><input type="checkbox" class="sel-linha" data-id="${r.id}" ${selecionados.has(r.id) ? 'checked' : ''}></td>
       <td class="col-ponto">${r.lida ? '' : '<span class="ponto" title="Não lido"></span>'}</td>
       <td>
         <div class="end-p">${esc(r.endereco || '(sem endereço)')}</div>
@@ -1156,25 +1398,21 @@ function renderTabela() {
     </tr>`;
   }).join('');
 
-  tb.querySelectorAll('tr').forEach(tr =>
-    tr.addEventListener('click', () => abrir(tr.dataset.id)));
-  tb.querySelectorAll('.link-perfil').forEach(a =>
-    a.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();   // não abre o imóvel junto
-      abrirPerfil(a.dataset.nome);
-    }));
-  tb.querySelectorAll('.link-ocupante').forEach(a =>
-    a.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      abrirOcupante(a.dataset.id);
-    }));
-  tb.querySelectorAll('.link-add').forEach(a =>
-    a.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      const campo = a.classList.contains('link-data') ? '#m-dataLeilao' : '#m-arrematador';
-      abrir(a.dataset.id);
-      setTimeout(() => $(campo)?.focus(), 60);
-    }));
+  renderBarraSel();
+
+  // Aviso de quantas linhas ainda faltam, com botão para carregar mais.
+  const resto = visiveis.length - mostrados.length;
+  const aviso = $('#mais-linhas');
+  if (aviso) {
+    aviso.hidden = resto <= 0;
+    if (resto > 0) {
+      aviso.innerHTML = `Mostrando ${mostrados.length} de ${visiveis.length}. `
+        + `<button class="btn" id="btn-mais">Carregar mais ${Math.min(resto, LOTE_LINHAS)}</button> `
+        + `<button class="btn btn-ghost" id="btn-todos">Carregar todos (${resto})</button>`;
+      $('#btn-mais').addEventListener('click', () => { limiteLinhas += LOTE_LINHAS; renderTabela(); });
+      $('#btn-todos').addEventListener('click', () => { limiteLinhas = visiveis.length; renderTabela(); });
+    }
+  }
 }
 
 function renderTimeline() {
@@ -1305,6 +1543,229 @@ function fecharModal() {
   $('#overlay')?.remove();
   editando = null;
   perfilAberto = null;
+}
+
+/* ==================== ficha do imóvel ==================== */
+let imovelAberto = null;
+
+function abrirImovel(id) {
+  const r = dados.find(x => x.id === id);
+  if (!r) return;
+  imovelAberto = id;
+  if (!r.lida) { r.lida = true; log(r, 'Marcado como lido'); salvar(); }
+
+  $$('.aba').forEach(x => x.classList.remove('ativa'));
+  $$('.painel').forEach(x => x.classList.remove('ativo'));
+  $('#p-imovel').classList.add('ativo');
+  window.scrollTo(0, 0);
+  renderFicha();
+}
+
+function voltarDaFicha() {
+  imovelAberto = null;
+  $$('.painel').forEach(x => x.classList.remove('ativo'));
+  $$('.aba').forEach(x => x.classList.remove('ativa'));
+  document.querySelector('.aba[data-p="painel"]').classList.add('ativa');
+  $('#p-painel').classList.add('ativo');
+  render();
+}
+
+function renderFicha() {
+  const r = dados.find(x => x.id === imovelAberto);
+  const alvo = $('#ficha-imovel');
+  if (!r || !alvo) return;
+
+  const local = [r.bairro, r.municipio, r.estado].filter(Boolean).join(' · ');
+  const mapa = 'https://www.google.com/maps/search/' +
+    encodeURIComponent([r.endereco, r.bairro, r.municipio, r.estado].filter(Boolean).join(', '));
+  const rgi = urlRgi(r);
+  const lemit = urlLemit(r);
+  const prazo = prazoLeilao(r);
+  const refValor = r.valorLance ?? r.valorMinimo;
+  const desagio = (r.valorAvaliacao && refValor)
+    ? ((1 - refValor / r.valorAvaliacao) * 100) : null;
+
+  const tarefas = r.tarefas || [];
+  const processos = r.processos || [];
+  const pend = tarefas.filter(t => !t.feita).length;
+
+  const linhaDado = (rot, val) => val
+    ? `<div class="dado"><span class="dado-r">${rot}</span><span class="dado-v">${esc(val)}</span></div>` : '';
+
+  alvo.innerHTML = `
+    <div class="ficha-topo">
+      <div>
+        <h2>${esc(r.endereco || '(sem endereço)')}</h2>
+        <div class="ficha-sub">${esc(local)}</div>
+        <div class="ficha-tags">
+          <span class="tag st-${r.status}">${STATUS[r.status]}</span>
+          <span class="tag et">${ETAPAS[r.etapa]}</span>
+          <span class="tag oc-${r.ocupacao}">${OCUPACAO[r.ocupacao]}</span>
+          ${r.financiavel ? '<span class="tag fin">Financiamento: Sim</span>' : ''}
+          ${prazo && prazo.nivel ? `<span class="prazo prazo-${prazo.nivel}">${
+              prazo.d === 0 ? 'HOJE' : prazo.d === 1 ? 'AMANHÃ' : `faltam ${prazo.d} dias`}</span>` : ''}
+        </div>
+      </div>
+      <div class="ficha-acoes">
+        <button class="btn btn-p" id="fi-editar">Editar dados</button>
+      </div>
+    </div>
+
+    <div class="ficha-grade">
+
+      <div class="caixa">
+        <h3>Imóvel e leilão</h3>
+        ${linhaDado('Nº do imóvel', r.codigoFonte)}
+        ${linhaDado('Matrícula', r.matricula)}
+        ${linhaDado('Processo', r.processo)}
+        ${linhaDado('Edital', r.edital)}
+        ${linhaDado('Data do leilão', r.dataLeilao ? dataBr(r.dataLeilao) : 'a definir')}
+        ${linhaDado('Avaliação', moeda(r.valorAvaliacao))}
+        ${linhaDado('Preço mínimo', r.valorMinimo ? moeda(r.valorMinimo) : '')}
+        ${linhaDado('Arrematado por', r.valorLance ? moeda(r.valorLance) : '')}
+        ${desagio && desagio > 0 ? `<div class="dado"><span class="dado-r">Deságio</span>
+            <span class="dado-v desagio">−${desagio.toFixed(1).replace('.', ',')}%</span></div>` : ''}
+        ${linhaDado('Fonte', r.fonte)}
+        ${linhaDado('Contato do leiloeiro', r.contato)}
+        <div class="ficha-links">
+          <a class="btn" href="${mapa}" target="_blank" rel="noopener">Mapa ↗</a>
+          ${r.link ? `<a class="btn" href="${esc(r.link)}" target="_blank" rel="noopener">Página do leilão ↗</a>` : ''}
+          ${rgi ? `<a class="btn" href="${esc(rgi)}" target="_blank" rel="noopener">Matrícula / RGI ↗</a>` : ''}
+          ${lemit ? `<a class="btn" href="${esc(lemit)}" target="_blank" rel="noopener">Consultar no LEMIT ↗</a>` : ''}
+        </div>
+      </div>
+
+      <div class="caixa">
+        <h3>Ocupante</h3>
+        ${r.ocupante && r.ocupante.nome ? `
+          ${linhaDado('Nome', r.ocupante.nome)}
+          ${linhaDado('Vínculo', VINCULO[r.ocupante.vinculo] || '')}
+          ${linhaDado('Documento', r.ocupante.documento)}
+          ${linhaDado('Telefone', r.ocupante.telefone)}
+          ${linhaDado('E-mail', r.ocupante.email)}
+          ${linhaDado('Origem', r.ocupante.origem)}
+          ${r.ocupante.notas ? `<p class="ficha-nota">${esc(r.ocupante.notas)}</p>` : ''}
+        ` : '<p class="ficha-vazio">Nenhum ocupante registrado.</p>'}
+        <button class="btn" id="fi-ocupante">${r.ocupante && r.ocupante.nome ? 'Editar ficha' : 'Registrar ocupante'}</button>
+      </div>
+
+      <div class="caixa">
+        <h3>Arrematador</h3>
+        ${r.arrematador
+          ? `<div class="dado"><span class="dado-r">Nome</span>
+               <span class="dado-v"><a href="#" class="link-perfil" data-nome="${esc(r.arrematador)}">${esc(r.arrematador)}</a></span></div>`
+          : '<p class="ficha-vazio">Nenhum arrematador registrado.</p>'}
+        <button class="btn" id="fi-arrematador">${r.arrematador ? 'Abrir cadastro' : 'Registrar arrematador'}</button>
+      </div>
+
+      <div class="caixa">
+        <h3>Tarefas ${pend ? `<span class="contador-pend">${pend} pendente(s)</span>` : ''}</h3>
+        <div class="lista-tarefas" id="fi-tarefas">
+          ${tarefas.length ? tarefas.map((t, i) => `
+            <div class="tarefa ${t.feita ? 'feita' : ''} ${!t.feita && t.prazo && diasAte(t.prazo) !== null && diasAte(t.prazo) < 0 ? 'atrasada' : ''}">
+              <input type="checkbox" data-i="${i}" class="tk-feita" ${t.feita ? 'checked' : ''}>
+              <div class="tarefa-txt">
+                <div>${esc(t.titulo)}</div>
+                ${t.prazo ? `<span class="end-s">${dataBr(t.prazo)}${
+                    !t.feita && diasAte(t.prazo) < 0 ? ' · atrasada' : ''}</span>` : ''}
+              </div>
+              <button class="tk-apagar" data-i="${i}" title="Excluir">🗑</button>
+            </div>`).join('') : '<p class="ficha-vazio">Nenhuma tarefa.</p>'}
+        </div>
+        <div class="nova-linha">
+          <input type="text" id="fi-tarefa-txt" placeholder="Nova tarefa">
+          <input type="date" id="fi-tarefa-prazo">
+          <button class="btn btn-p" id="fi-tarefa-add">Adicionar</button>
+        </div>
+      </div>
+
+      <div class="caixa">
+        <h3>Processos</h3>
+        <div id="fi-processos">
+          ${processos.length ? processos.map((p, i) => `
+            <div class="tarefa">
+              <div class="tarefa-txt">
+                <div>${esc(p.numero)}</div>
+                <span class="end-s">${esc([p.vara, p.tipo].filter(Boolean).join(' · '))}</span>
+              </div>
+              <button class="pr-apagar" data-i="${i}" title="Excluir">🗑</button>
+            </div>`).join('') : '<p class="ficha-vazio">Nenhum processo vinculado.</p>'}
+        </div>
+        <div class="nova-linha">
+          <input type="text" id="fi-proc-num" placeholder="Nº do processo">
+          <input type="text" id="fi-proc-vara" placeholder="Vara / comarca">
+          <button class="btn btn-p" id="fi-proc-add">Adicionar</button>
+        </div>
+      </div>
+
+      <div class="caixa">
+        <h3>Anotações</h3>
+        <textarea id="fi-notas" rows="5" placeholder="Anotações sobre este imóvel...">${esc(r.notas)}</textarea>
+        <button class="btn" id="fi-notas-salvar">Salvar anotações</button>
+        ${(r.historico || []).length ? `<div class="hist"><h4>Histórico</h4><ul>${
+          r.historico.slice(0, 10).map(h => `<li>${dataBr(h.em.slice(0,10))} — ${esc(h.texto)}</li>`).join('')
+        }</ul></div>` : ''}
+      </div>
+
+    </div>`;
+
+  ligarFicha(r);
+}
+
+function ligarFicha(r) {
+  const redesenhar = () => { salvar(); renderFicha(); };
+
+  $('#fi-editar').addEventListener('click', () => abrir(r.id));
+  $('#fi-ocupante').addEventListener('click', () => abrirOcupante(r.id));
+  $('#fi-arrematador').addEventListener('click', () => {
+    if (r.arrematador) abrirPerfil(r.arrematador);
+    else { abrir(r.id); setTimeout(() => $('#m-arrematador')?.focus(), 60); }
+  });
+  $('#ficha-imovel').querySelector('.link-perfil')
+    ?.addEventListener('click', e => { e.preventDefault(); abrirPerfil(r.arrematador); });
+
+  $('#fi-tarefa-add').addEventListener('click', () => {
+    const titulo = $('#fi-tarefa-txt').value.trim();
+    if (!titulo) { toast('Escreva a tarefa.', true); return; }
+    r.tarefas = r.tarefas || [];
+    r.tarefas.push({ titulo, prazo: $('#fi-tarefa-prazo').value, feita: false, criadaEm: new Date().toISOString() });
+    log(r, `Tarefa criada: ${titulo}`);
+    redesenhar();
+  });
+  $$('#fi-tarefas .tk-feita').forEach(c => c.addEventListener('change', () => {
+    const t = r.tarefas[+c.dataset.i];
+    t.feita = c.checked;
+    log(r, `Tarefa ${t.feita ? 'concluída' : 'reaberta'}: ${t.titulo}`);
+    redesenhar();
+  }));
+  $$('#fi-tarefas .tk-apagar').forEach(b => b.addEventListener('click', () => {
+    const t = r.tarefas[+b.dataset.i];
+    if (!confirm(`Excluir a tarefa "${t.titulo}"?`)) return;
+    r.tarefas.splice(+b.dataset.i, 1);
+    redesenhar();
+  }));
+
+  $('#fi-proc-add').addEventListener('click', () => {
+    const numero = $('#fi-proc-num').value.trim();
+    if (!numero) { toast('Informe o número do processo.', true); return; }
+    r.processos = r.processos || [];
+    r.processos.push({ numero, vara: $('#fi-proc-vara').value.trim(), tipo: '' });
+    if (!r.processo) r.processo = numero;   // o primeiro vira o processo principal
+    log(r, `Processo vinculado: ${numero}`);
+    redesenhar();
+  });
+  $$('#fi-processos .pr-apagar').forEach(b => b.addEventListener('click', () => {
+    if (!confirm('Excluir este processo da ficha?')) return;
+    r.processos.splice(+b.dataset.i, 1);
+    redesenhar();
+  }));
+
+  $('#fi-notas-salvar').addEventListener('click', () => {
+    r.notas = $('#fi-notas').value;
+    log(r, 'Anotações atualizadas');
+    redesenhar();
+    toast('Anotações salvas.');
+  });
 }
 
 /* ---------- ficha do ocupante ---------- */
@@ -1559,6 +2020,7 @@ function chaveTrabalho(r) {
 function foiTrabalhado(r) {
   return !!(r.lida || r.notas || r.arrematador || r.dataLeilao || r.valorLance ||
             r.linkRgi || r.contato || r.matricula || r.processo || r.edital ||
+            (r.tarefas && r.tarefas.length) || (r.processos && r.processos.length) ||
             (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
             (r.etapa && r.etapa !== 'novo') ||
             (r.ocupacao && r.ocupacao !== 'nao_informado') ||
@@ -1566,7 +2028,8 @@ function foiTrabalhado(r) {
 }
 
 const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador',
-  'dataLeilao','valorLance','linkRgi','contato','matricula','processo','edital','status','historico'];
+  'dataLeilao','valorLance','linkRgi','contato','matricula','processo','edital','status',
+  'tarefas','processos','historico'];
 
 function extrairTrabalho() {
   const itens = { ...orfaos };
@@ -1791,6 +2254,23 @@ function derivarPadraoRgi(url, registros) {
   }
 
   return { padrao: p, temUf: p.includes('{uf}') };
+}
+
+/**
+ * Link para o LEMIT. É apenas navegação: leva você à plataforma que você
+ * assina, onde a consulta é feita por você, sob sua responsabilidade — nada
+ * é buscado nem trazido de volta para cá automaticamente.
+ * O padrão é deduzido de um endereço que você cole, como no RGI.
+ */
+let padraoLemit = '';
+
+function urlLemit(r) {
+  if (!padraoLemit) return '';
+  const partes = [r.endereco, r.bairro, r.municipio, r.estado].filter(Boolean).join(', ');
+  return padraoLemit
+    .replace('{endereco}', encodeURIComponent(partes))
+    .replace('{codigo}', encodeURIComponent(r.codigoFonte || ''))
+    .replace('{uf}', encodeURIComponent(r.estado || ''));
 }
 
 /** URL da matrícula: a específica do registro, ou a derivada do padrão. */
@@ -2185,6 +2665,7 @@ function init() {
     $$('.painel').forEach(x => x.classList.remove('ativo'));
     b.classList.add('ativa');
     $('#p-' + b.dataset.p).classList.add('ativo');
+    render();      // a aba que acabou de aparecer é desenhada agora
   }));
 
   // filtros
@@ -2199,6 +2680,38 @@ function init() {
   });
 
   // ordenação
+  // Um único escutador na tabela em vez de um por linha: com centenas de
+  // linhas, registrar listeners individuais custava mais que desenhar o HTML.
+  $('#tbody').addEventListener('click', (e) => {
+    // A caixa de seleção não deve abrir a ficha.
+    const cx = e.target.closest('.sel-linha');
+    if (cx) {
+      e.stopPropagation();
+      cx.checked ? selecionados.add(cx.dataset.id) : selecionados.delete(cx.dataset.id);
+      renderBarraSel();
+      return;
+    }
+
+    const perfil = e.target.closest('.link-perfil');
+    if (perfil) { e.preventDefault(); abrirPerfil(perfil.dataset.nome); return; }
+
+    const ocup = e.target.closest('.link-ocupante');
+    if (ocup) { e.preventDefault(); abrirOcupante(ocup.dataset.id); return; }
+
+    const add = e.target.closest('.link-add');
+    if (add) {
+      e.preventDefault();
+      const campo = add.classList.contains('link-data') ? '#m-dataLeilao' : '#m-arrematador';
+      abrir(add.dataset.id);
+      setTimeout(() => $(campo)?.focus(), 60);
+      return;
+    }
+
+    if (e.target.closest('a')) return;          // links externos seguem normalmente
+    const tr = e.target.closest('tr[data-id]');
+    if (tr) abrirImovel(tr.dataset.id);
+  });
+
   $$('th[data-ord]').forEach(th => th.addEventListener('click', () => {
     const c = th.dataset.ord;
     // Clicar de novo na mesma coluna inverte; coluna nova começa pela direção
@@ -2260,6 +2773,67 @@ function init() {
     $('#s-token').value = '';
     toast('Token removido deste navegador.');
   });
+
+  // padrão do LEMIT
+  $('#btn-lemit-salvar').addEventListener('click', () => {
+    const v = $('#lemit-padrao').value.trim();
+    const res = $('#res-lemit');
+    res.hidden = false;
+    if (!/^https?:\/\//i.test(v)) {
+      res.className = 'resultado erro';
+      res.innerHTML = '<strong>Endereço inválido.</strong> Precisa começar com http.';
+      return;
+    }
+    padraoLemit = v;
+    try { localStorage.setItem(CHAVE_LEMIT, padraoLemit); } catch (e) {}
+    res.className = 'resultado';
+    res.innerHTML = `<strong>Ativo.</strong><br><code>${esc(padraoLemit)}</code><br><br>`
+      + (v.includes('{endereco}') || v.includes('{codigo}')
+          ? 'O botão aparece na ficha de cada imóvel.'
+          : '<strong>Atenção:</strong> o endereço não tem <code>{endereco}</code> nem <code>{codigo}</code>, então o link abrirá sempre a mesma página.');
+    render();
+    toast('LEMIT configurado.');
+  });
+  $('#btn-lemit-limpar').addEventListener('click', () => {
+    padraoLemit = '';
+    try { localStorage.removeItem(CHAVE_LEMIT); } catch (e) {}
+    $('#lemit-padrao').value = '';
+    $('#res-lemit').hidden = true;
+    render();
+    toast('Link do LEMIT removido.');
+  });
+
+  // ficha do imóvel
+  $('#btn-voltar').addEventListener('click', voltarDaFicha);
+
+  // seleção múltipla e edição em lote
+  $('#sel-etapa-valor').innerHTML =
+    Object.entries(ETAPAS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+
+  $('#sel-todos').addEventListener('change', (e) => {
+    // Vale para o resultado inteiro do filtro, não só para as linhas pintadas.
+    if (e.target.checked) visiveis.forEach(r => selecionados.add(r.id));
+    else visiveis.forEach(r => selecionados.delete(r.id));
+    renderTabela();
+  });
+
+  $('#sel-limpar').addEventListener('click', () => { selecionados.clear(); renderTabela(); });
+
+  $('#sel-aplicar-data').addEventListener('click', () => {
+    const data = $('#sel-data').value;
+    if (!data) { toast('Escolha a data primeiro.', true); return; }
+    if (!confirm(`Definir ${dataBr(data)} como data do leilão em ${selecionados.size} imóvel(is)?`)) return;
+    aplicarEmLote(r => { r.dataLeilao = data; }, `Data do leilão definida: ${dataBr(data)}`);
+  });
+
+  $('#sel-aplicar-etapa').addEventListener('click', () => {
+    const et = $('#sel-etapa-valor').value;
+    if (!confirm(`Mudar ${selecionados.size} imóvel(is) para "${ETAPAS[et]}"?`)) return;
+    aplicarEmLote(r => { r.etapa = et; }, `Etapa: ${ETAPAS[et]}`);
+  });
+
+  $('#sel-lidas').addEventListener('click', () =>
+    aplicarEmLote(r => { r.lida = true; }, 'Marcado como lido'));
 
   // padrão da matrícula (RGI)
   $('#btn-rgi-detectar').addEventListener('click', () => {
