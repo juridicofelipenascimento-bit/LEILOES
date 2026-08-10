@@ -304,6 +304,7 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 }
 .end-p { font-weight: 600; }
 .end-s { font-size: 11.5px; color: var(--texto-suave); margin-top: 2px; }
+.end-s.prop { color: var(--marca); font-weight: 600; }
 .mapa { font-size: 11.5px; color: var(--primaria); text-decoration: none; }
 .mapa:hover { text-decoration: underline; }
 .tag {
@@ -1049,7 +1050,8 @@ const VINCULO = {
   antigo_prop:      'Antigo proprietário',
 };
 const COLUNAS = ['id','codigoFonte','endereco','bairro','municipio','estado','matricula','processo','edital',
-  'valorAvaliacao','valorMinimo','valorLance','dataLeilao','status','etapa','ocupacao','arrematador','fonte','link','notas','lida'];
+  'valorAvaliacao','valorMinimo','valorLance','dataLeilao','status','etapa','ocupacao',
+  'arrematador','proprietario','responsavel','fonte','link','notas','lida'];
 
 /* ==================== estado ==================== */
 let dados = [];
@@ -1079,7 +1081,8 @@ function textoBusca(r) {
   let v = cacheBusca.get(chave);
   if (v === undefined) {
     v = semAcento([r.endereco, r.bairro, r.municipio, r.estado, r.matricula,
-                   r.processo, r.edital, r.arrematador, r.fonte, r.notas].join(' '));
+                   r.processo, r.edital, r.arrematador, r.proprietario,
+                   r.responsavel, r.fonte, r.notas].join(' '));
     if (cacheBusca.size > 5000) cacheBusca.clear();
     cacheBusca.set(chave, v);
   }
@@ -1266,6 +1269,9 @@ function normalizar(r, anterior, preservarVazios) {
     tarefas:        r.tarefas || base.tarefas || [],
     processos:      r.processos || base.processos || [],
     arrematador:    txt(r.arrematador, base.arrematador),
+    // Proprietário anterior à Caixa, lido na matrícula (RGI) que a própria
+    // Caixa publica na página do imóvel. Preenchimento manual.
+    proprietario:   txt(r.proprietario, base.proprietario),
     fonte:          txt(r.fonte, base.fonte),
     link:           txt(r.link, base.link),
     linkRgi:        txt(r.linkRgi, base.linkRgi),
@@ -1613,6 +1619,7 @@ function renderTabela() {
         ${r.matricula ? `<div class="end-s">Matrícula ${esc(r.matricula)}</div>` : ''}
         ${r.financiavel ? '<div class="end-s"><span class="tag fin" title="Coluna &quot;Financiamento&quot; da planilha da Caixa">Financiamento: Sim</span></div>' : ''}
         ${r.processo ? `<div class="end-s">Proc. ${esc(r.processo)}</div>` : ''}
+        ${r.proprietario ? `<div class="end-s prop">Prop. anterior: ${esc(r.proprietario)}</div>` : ''}
         <a class="mapa" href="${mapa}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Mapa ↗</a>
         ${r.link ? ` · <a class="mapa leilao" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Leilão ↗</a>` : ''}
         ${(() => {
@@ -1757,6 +1764,11 @@ function mostrarModal(r) {
       <label>Etapa<select id="m-etapa">${opts(ETAPAS, r.etapa)}</select></label>
       <label>Ocupação (conforme edital)<select id="m-ocupacao">${opts(OCUPACAO, r.ocupacao)}</select></label>
       ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
+      <label>Proprietário anterior
+        ${urlRgi(r) ? `<a class="link-imovel" href="${esc(urlRgi(r))}" target="_blank" rel="noopener"
+             style="font-size:11.5px;margin-bottom:2px">Abrir a matrícula (RGI) ↗ — o nome consta na cadeia dominial</a>` : ''}
+        <input id="m-proprietario" type="text" value="${esc(r.proprietario ?? '')}" placeholder="quem constava antes da Caixa">
+      </label>
       ${campo('fonte', 'Fonte', 'text', r.fonte)}
       ${campo('contato', 'Contato do leiloeiro', 'text', r.contato, 'telefone, e-mail ou site do edital')}
       <label>Responsável
@@ -2066,6 +2078,7 @@ function renderFicha() {
         ${linhaDado('Arrematado por', r.valorLance ? moeda(r.valorLance) : '')}
         ${desagio && desagio > 0 ? `<div class="dado"><span class="dado-r">Deságio</span>
             <span class="dado-v desagio">−${desagio.toFixed(1).replace('.', ',')}%</span></div>` : ''}
+        ${linhaDado('Proprietário anterior', r.proprietario)}
         ${linhaDado('Fonte', r.fonte)}
         ${linhaDado('Contato do leiloeiro', r.contato)}
         <div class="ficha-links">
@@ -2776,7 +2789,7 @@ function chaveTrabalho(r) {
 
 /** Um registro só entra no pacote se o usuário mexeu nele. */
 function foiTrabalhado(r) {
-  return !!(r.lida || r.notas || r.arrematador || r.dataLeilao || r.valorLance ||
+  return !!(r.lida || r.notas || r.arrematador || r.proprietario || r.dataLeilao || r.valorLance ||
             r.linkRgi || r.contato || r.responsavel || r.matricula || r.processo || r.edital ||
             (r.tarefas && r.tarefas.length) || (r.processos && r.processos.length) ||
             (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
@@ -2785,7 +2798,7 @@ function foiTrabalhado(r) {
             (r.status && r.status !== 'agendado'));
 }
 
-const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador',
+const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador','proprietario',
   'dataLeilao','valorLance','linkRgi','contato','responsavel','matricula','processo','edital',
   'status','tarefas','processos','historico'];
 
@@ -3270,7 +3283,7 @@ function salvarModal() {
     valorAvaliacao: v('valorAvaliacao'), valorLance: v('valorLance'), dataLeilao: v('dataLeilao'),
     valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
-    arrematador: v('arrematador'), fonte: v('fonte'),
+    arrematador: v('arrematador'), proprietario: v('proprietario'), fonte: v('fonte'),
     link: v('link'), linkRgi: v('linkRgi'), contato: v('contato'),
     responsavel: v('responsavel'), notas: v('notas'),
   };
@@ -3291,7 +3304,10 @@ function salvarModal() {
     dados.push(reg);
   }
   sincronizarPerfis();   // arrematador novo ganha cadastro na hora
-  salvar(); fecharModal(); popularSelects(); render();
+  salvar(); fecharModal(); popularSelects(); popularResponsaveis(); render();
+  // Se a ficha do imóvel estiver aberta atrás do formulário, ela também
+  // precisa refletir o que acabou de mudar.
+  if (imovelAberto) renderFicha();
   toast('Registro salvo.');
 }
 
@@ -3299,6 +3315,8 @@ function excluir(id) {
   const r = dados.find(x => x.id === id);
   if (!confirm(`Excluir "${r.endereco || 'imóvel sem endereço'}"?\n\nNão há como desfazer.`)) return;
   dados = dados.filter(x => x.id !== id);
+  selecionados.delete(id);
+  if (imovelAberto === id) voltarDaFicha();   // não deixar a ficha de um imóvel apagado aberta
   salvar(); fecharModal(); popularSelects(); render();
   toast('Registro excluído.');
 }
