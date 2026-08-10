@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Monitor de Leilões Imobiliários</title>
+<!-- Ícone da aba: o mesmo logo, como SVG embutido. Fica no próprio arquivo,
+     então continua funcionando offline e ao abrir por file://. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 40 A60 60 0 0 1 100 160 L100 133 A33 33 0 0 0 100 67 Z' fill='%233bb3ae'/%3E%3Cpath d='M56 68 A32 32 0 0 1 56 132 L56 116 A16 16 0 0 0 56 84 Z' fill='%233bb3ae'/%3E%3C/svg%3E">
 <style>
 :root {
   --bg: #f4f6f8;
@@ -164,6 +167,7 @@ tr.urgente td:nth-child(3) { color: var(--alerta); font-weight: 700; }
 .desagio { font-size: 11.5px; color: var(--sucesso); font-weight: 600; }
 .dias-al { display: block; font-size: 11px; color: var(--alerta); font-weight: 700; margin-top: 2px; }
 .sem-data { color: var(--texto-suave); font-style: italic; }
+.dias-ok { display: block; font-size: 11px; color: var(--texto-suave); margin-top: 2px; }
 .tag.fin { background: color-mix(in srgb, var(--sucesso) 15%, transparent); color: var(--sucesso); font-size: 10.5px; }
 .vazio { padding: 40px; text-align: center; color: var(--texto-suave); }
 
@@ -857,6 +861,7 @@ function normalizar(r, anterior, preservarVazios) {
     fonte:          txt(r.fonte, base.fonte),
     link:           txt(r.link, base.link),
     linkRgi:        txt(r.linkRgi, base.linkRgi),
+    contato:        txt(r.contato, base.contato),
     notas:          txt(r.notas, base.notas),
     lida:           r.lida !== undefined ? !!r.lida : (base.lida ?? false),
     historico:      base.historico || r.historico || [],
@@ -1013,8 +1018,10 @@ function renderTabela() {
         })()}
       </td>
       <td>${r.dataLeilao
-        ? `${dataBr(r.dataLeilao)}${urg ? `<span class="dias-al">${d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : 'em ' + d + ' dias'}</span>` : ''}`
-        : `<span class="sem-data">a definir</span>${r.link
+        ? `${dataBr(r.dataLeilao)}${d !== null ? `<span class="${urg ? 'dias-al' : 'dias-ok'}">${
+              d < 0 ? `há ${-d} dia(s)` : d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : `faltam ${d} dias`
+            }</span>` : ''}`
+        : `<a href="#" class="link-add link-data" data-id="${r.id}" title="Informar a data do leilão">+ data</a>${r.link
             ? `<div class="end-s"><a class="mapa" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">ver no edital ↗</a></div>`
             : ''}${r.dataListagem
             ? `<div class="end-s">listagem de ${dataBr(r.dataListagem)}</div>` : ''}`}</td>
@@ -1051,8 +1058,9 @@ function renderTabela() {
   tb.querySelectorAll('.link-add').forEach(a =>
     a.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      abrir(a.dataset.id);            // abre o imóvel; o campo Arrematador está lá
-      setTimeout(() => $('#m-arrematador')?.focus(), 60);
+      const campo = a.classList.contains('link-data') ? '#m-dataLeilao' : '#m-arrematador';
+      abrir(a.dataset.id);
+      setTimeout(() => $(campo)?.focus(), 60);
     }));
 }
 
@@ -1143,6 +1151,7 @@ function mostrarModal(r) {
       <label>Ocupação (conforme edital)<select id="m-ocupacao">${opts(OCUPACAO, r.ocupacao)}</select></label>
       ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
       ${campo('fonte', 'Fonte', 'text', r.fonte)}
+      ${campo('contato', 'Contato do leiloeiro', 'text', r.contato, 'telefone, e-mail ou site do edital')}
       <label class="full">Link do edital / anúncio
         ${r.link ? `<a class="link-imovel" href="${esc(r.link)}" target="_blank" rel="noopener"
              style="font-size:12px;margin-bottom:2px">Abrir a página do imóvel ↗ — lá estão a data do leilão, o edital e a matrícula (RGI) para download</a>` : ''}
@@ -1436,7 +1445,7 @@ function chaveTrabalho(r) {
 /** Um registro só entra no pacote se o usuário mexeu nele. */
 function foiTrabalhado(r) {
   return !!(r.lida || r.notas || r.arrematador || r.dataLeilao || r.valorLance ||
-            r.linkRgi || r.matricula || r.processo || r.edital ||
+            r.linkRgi || r.contato || r.matricula || r.processo || r.edital ||
             (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
             (r.etapa && r.etapa !== 'novo') ||
             (r.ocupacao && r.ocupacao !== 'nao_informado') ||
@@ -1444,7 +1453,7 @@ function foiTrabalhado(r) {
 }
 
 const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador',
-  'dataLeilao','valorLance','linkRgi','matricula','processo','edital','status','historico'];
+  'dataLeilao','valorLance','linkRgi','contato','matricula','processo','edital','status','historico'];
 
 function extrairTrabalho() {
   const itens = { ...orfaos };
@@ -1600,39 +1609,66 @@ function carregarCfgSync() {
 // o substitui por um curinga. Assim o link direto vale para todos os imóveis.
 let padraoRgi = '';
 
-function derivarPadraoRgi(url, codigos) {
-  const limpa = String(url || '').trim();
-  if (!/^https?:\/\//i.test(limpa)) return { erro: 'Endereço inválido — precisa começar com http.' };
+/**
+ * A URL da matrícula tem DOIS pedaços variáveis: a UF e o número do imóvel
+ * (.../matricula/RJ/8444409862615.pdf). Fixar a UF no padrão fazia o link de
+ * MG apontar para a pasta do RJ — que foi o defeito relatado.
+ * Trocamos os dois por curingas: {uf} e {codigo}.
+ */
+function derivarPadraoRgi(url, registros) {
+  let p = String(url || '').trim();
+  if (!/^https?:\/\//i.test(p)) return { erro: 'Endereço inválido — precisa começar com http.' };
 
-  // 1ª tentativa: o número de um imóvel que já está na base aparece na URL.
-  for (const c of codigos) {
-    if (c && limpa.includes(c)) {
-      return { padrao: limpa.split(c).join('{codigo}') };
-    }
+  let uf = '';
+  // 1ª tentativa: o número de um imóvel da base aparece na URL — e aí sabemos
+  // de qual imóvel se trata, logo sabemos a UF certa.
+  const achado = registros.find(r => r.codigoFonte && p.includes(r.codigoFonte));
+  if (achado) {
+    p = p.split(achado.codigoFonte).join('{codigo}');
+    uf = achado.estado;
+  } else {
+    // 2ª tentativa: qualquer sequência longa de dígitos é o identificador.
+    const m = p.match(/\d{7,}/);
+    if (!m) return { erro: 'Não encontrei o número do imóvel dentro desse endereço.' };
+    p = p.replace(m[0], '{codigo}');
   }
-  // 2ª tentativa: qualquer sequência longa de dígitos serve como identificador.
-  const m = limpa.match(/\d{7,}/);
-  if (m) return { padrao: limpa.replace(m[0], '{codigo}') };
 
-  return { erro: 'Não encontrei o número do imóvel dentro desse endereço.' };
+  // Substitui a UF apenas quando ela é um trecho inteiro do caminho, entre
+  // barras — assim não se troca por engano duas letras do domínio.
+  if (uf && new RegExp('/' + uf + '/', 'i').test(p)) {
+    p = p.replace(new RegExp('/' + uf + '/', 'i'), '/{uf}/');
+  } else {
+    const seg = p.match(/\/([A-Z]{2})\//);
+    if (seg && UFS_BR.includes(seg[1].toUpperCase())) p = p.replace(seg[0], '/{uf}/');
+  }
+
+  return { padrao: p, temUf: p.includes('{uf}') };
 }
 
 /** URL da matrícula: a específica do registro, ou a derivada do padrão. */
 function urlRgi(r) {
   if (r.linkRgi) return r.linkRgi;
-  if (padraoRgi && r.codigoFonte) return padraoRgi.replace('{codigo}', r.codigoFonte);
-  return '';
+  if (!padraoRgi || !r.codigoFonte) return '';
+  // Sem a UF do registro não dá para montar o endereço — melhor não exibir
+  // link nenhum do que exibir um que leva à pasta do estado errado.
+  if (padraoRgi.includes('{uf}') && !r.estado) return '';
+  return padraoRgi.replace('{codigo}', r.codigoFonte).replace('{uf}', r.estado);
 }
 
 function renderRgi() {
   const res = $('#res-rgi');
   if (!res) return;
   if (!padraoRgi) { res.hidden = true; return; }
-  const comCodigo = dados.filter(r => r.codigoFonte).length;
+  const comLink = dados.filter(r => urlRgi(r)).length;
+  const ufs = [...new Set(dados.filter(r => urlRgi(r)).map(r => r.estado).filter(Boolean))].sort();
   res.hidden = false; res.className = 'resultado';
   res.innerHTML = `<strong>Padrão ativo.</strong><br>
     <code>${esc(padraoRgi)}</code><br><br>
-    ${comCodigo} imóvel(is) com link direto para a matrícula.`;
+    ${comLink} imóvel(is) com link direto para a matrícula`
+    + (ufs.length ? ` · ${ufs.join(', ')}` : '')
+    + (padraoRgi.includes('{uf}')
+        ? '<br><br>A UF entra automaticamente — o mesmo padrão vale para todos os estados.'
+        : '<br><br><strong>Atenção:</strong> não identifiquei a UF neste endereço. Se o link falhar em outro estado, cole aqui uma matrícula de UF diferente para eu recalcular.');
 }
 
 /* ---------- leitura de arquivos da Caixa ---------- */
@@ -1845,7 +1881,7 @@ function salvarModal() {
     valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
     arrematador: v('arrematador'), fonte: v('fonte'),
-    link: v('link'), linkRgi: v('linkRgi'), notas: v('notas'),
+    link: v('link'), linkRgi: v('linkRgi'), contato: v('contato'), notas: v('notas'),
   };
   if (!entrada.endereco.trim() && !entrada.matricula.trim()) {
     toast('Informe ao menos o endereço ou a matrícula.', true);
@@ -2066,8 +2102,7 @@ function init() {
   // padrão da matrícula (RGI)
   $('#btn-rgi-detectar').addEventListener('click', () => {
     const res = $('#res-rgi');
-    const { padrao, erro } = derivarPadraoRgi(
-      $('#rgi-exemplo').value, dados.map(r => r.codigoFonte).filter(Boolean));
+    const { padrao, erro, temUf } = derivarPadraoRgi($('#rgi-exemplo').value, dados);
     if (erro) {
       res.hidden = false; res.className = 'resultado erro';
       res.innerHTML = `<strong>Não deu.</strong> ${esc(erro)}`;
@@ -2077,7 +2112,8 @@ function init() {
     try { localStorage.setItem(CHAVE_RGI, padraoRgi); } catch (e) {}
     $('#rgi-exemplo').value = '';
     render();
-    toast('Padrão detectado — links de RGI ativados.');
+    toast(temUf ? 'Padrão detectado — vale para todos os estados.'
+                : 'Padrão detectado, mas sem UF: confira em outro estado.');
   });
   $('#btn-rgi-limpar').addEventListener('click', () => {
     padraoRgi = '';
