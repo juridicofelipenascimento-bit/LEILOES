@@ -305,6 +305,8 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 .end-p { font-weight: 600; }
 .end-s { font-size: 11.5px; color: var(--texto-suave); margin-top: 2px; }
 .end-s.prop { color: var(--marca); font-weight: 600; }
+.zap { color: #25d366; font-size: 12px; font-weight: 600; text-decoration: none; }
+.zap:hover { text-decoration: underline; }
 .mapa { font-size: 11.5px; color: var(--primaria); text-decoration: none; }
 .mapa:hover { text-decoration: underline; }
 .tag {
@@ -1051,7 +1053,7 @@ const VINCULO = {
 };
 const COLUNAS = ['id','codigoFonte','endereco','bairro','municipio','estado','matricula','processo','edital',
   'valorAvaliacao','valorMinimo','valorLance','dataLeilao','status','etapa','ocupacao',
-  'arrematador','proprietario','responsavel','fonte','link','notas','lida'];
+  'arrematador','responsavel','fonte','link','notas','lida'];
 
 /* ==================== estado ==================== */
 let dados = [];
@@ -1081,7 +1083,7 @@ function textoBusca(r) {
   let v = cacheBusca.get(chave);
   if (v === undefined) {
     v = semAcento([r.endereco, r.bairro, r.municipio, r.estado, r.matricula,
-                   r.processo, r.edital, r.arrematador, r.proprietario,
+                   r.processo, r.edital, r.arrematador, ...nomesProprietarios(r),
                    r.responsavel, r.fonte, r.notas].join(' '));
     if (cacheBusca.size > 5000) cacheBusca.clear();
     cacheBusca.set(chave, v);
@@ -1110,6 +1112,23 @@ function paraNumero(v) {
   }                                                    // 57227.73 fica intacto
   const n = Number(s);
   return Number.isNaN(n) ? null : n;
+}
+
+/** Nomes dos proprietários anteriores, para lista e busca. */
+function nomesProprietarios(r) {
+  return (r.proprietarios || []).map(p => p.nome).filter(Boolean);
+}
+
+/**
+ * Link de WhatsApp a partir do telefone digitado. Só monta se sobrarem
+ * 10 ou 11 dígitos (fixo com DDD ou celular) — número incompleto geraria
+ * um link que abre conversa com desconhecido.
+ */
+function linkWhatsApp(telefone) {
+  const d = String(telefone || '').replace(/\D/g, '');
+  const semPais = d.startsWith('55') ? d.slice(2) : d;
+  if (semPais.length < 10 || semPais.length > 11) return '';
+  return 'https://wa.me/55' + semPais;
 }
 
 function moeda(v) {
@@ -1269,9 +1288,16 @@ function normalizar(r, anterior, preservarVazios) {
     tarefas:        r.tarefas || base.tarefas || [],
     processos:      r.processos || base.processos || [],
     arrematador:    txt(r.arrematador, base.arrematador),
-    // Proprietário anterior à Caixa, lido na matrícula (RGI) que a própria
-    // Caixa publica na página do imóvel. Preenchimento manual.
-    proprietario:   txt(r.proprietario, base.proprietario),
+    // Proprietários anteriores à Caixa, lidos na matrícula (RGI). É lista
+    // porque a titularidade costuma ser de casal. Preenchimento manual.
+    // `proprietario` (texto) é o formato antigo — convertido aqui para não
+    // perder o que já foi digitado.
+    proprietarios: (() => {
+      const lista = r.proprietarios || base.proprietarios;
+      if (Array.isArray(lista)) return lista;
+      const antigo = txt(r.proprietario, base.proprietario);
+      return antigo ? [{ nome: antigo, documento: '', telefone: '', origem: '' }] : [];
+    })(),
     fonte:          txt(r.fonte, base.fonte),
     link:           txt(r.link, base.link),
     linkRgi:        txt(r.linkRgi, base.linkRgi),
@@ -1619,7 +1645,8 @@ function renderTabela() {
         ${r.matricula ? `<div class="end-s">Matrícula ${esc(r.matricula)}</div>` : ''}
         ${r.financiavel ? '<div class="end-s"><span class="tag fin" title="Coluna &quot;Financiamento&quot; da planilha da Caixa">Financiamento: Sim</span></div>' : ''}
         ${r.processo ? `<div class="end-s">Proc. ${esc(r.processo)}</div>` : ''}
-        ${r.proprietario ? `<div class="end-s prop">Prop. anterior: ${esc(r.proprietario)}</div>` : ''}
+        ${nomesProprietarios(r).length
+          ? `<div class="end-s prop">Prop. anterior: ${esc(nomesProprietarios(r).join(' e '))}</div>` : ''}
         <a class="mapa" href="${mapa}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Mapa ↗</a>
         ${r.link ? ` · <a class="mapa leilao" href="${esc(r.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Leilão ↗</a>` : ''}
         ${(() => {
@@ -1764,11 +1791,6 @@ function mostrarModal(r) {
       <label>Etapa<select id="m-etapa">${opts(ETAPAS, r.etapa)}</select></label>
       <label>Ocupação (conforme edital)<select id="m-ocupacao">${opts(OCUPACAO, r.ocupacao)}</select></label>
       ${campo('arrematador', 'Arrematador (conforme auto público)', 'text', r.arrematador)}
-      <label>Proprietário anterior
-        ${urlRgi(r) ? `<a class="link-imovel" href="${esc(urlRgi(r))}" target="_blank" rel="noopener"
-             style="font-size:11.5px;margin-bottom:2px">Abrir a matrícula (RGI) ↗ — o nome consta na cadeia dominial</a>` : ''}
-        <input id="m-proprietario" type="text" value="${esc(r.proprietario ?? '')}" placeholder="quem constava antes da Caixa">
-      </label>
       ${campo('fonte', 'Fonte', 'text', r.fonte)}
       ${campo('contato', 'Contato do leiloeiro', 'text', r.contato, 'telefone, e-mail ou site do edital')}
       <label>Responsável
@@ -2078,7 +2100,6 @@ function renderFicha() {
         ${linhaDado('Arrematado por', r.valorLance ? moeda(r.valorLance) : '')}
         ${desagio && desagio > 0 ? `<div class="dado"><span class="dado-r">Deságio</span>
             <span class="dado-v desagio">−${desagio.toFixed(1).replace('.', ',')}%</span></div>` : ''}
-        ${linhaDado('Proprietário anterior', r.proprietario)}
         ${linhaDado('Fonte', r.fonte)}
         ${linhaDado('Contato do leiloeiro', r.contato)}
         <div class="ficha-links">
@@ -2101,6 +2122,36 @@ function renderFicha() {
           ${r.ocupante.notas ? `<p class="ficha-nota">${esc(r.ocupante.notas)}</p>` : ''}
         ` : '<p class="ficha-vazio">Nenhum ocupante registrado.</p>'}
         <button class="btn" id="fi-ocupante">${r.ocupante && r.ocupante.nome ? 'Editar ficha' : 'Registrar ocupante'}</button>
+      </div>
+
+      <div class="caixa">
+        <h3>Proprietários anteriores</h3>
+        <p class="ficha-vazio" style="margin:0 0 10px">
+          Quem constava na matrícula antes da Caixa. Costuma ser casal.
+          ${urlRgi(r) ? `<a class="link-imovel" href="${esc(urlRgi(r))}" target="_blank" rel="noopener">Abrir o RGI ↗</a>` : ''}
+        </p>
+        <div id="fi-props">
+          ${(r.proprietarios || []).length ? (r.proprietarios || []).map((p, i) => {
+            const wa = linkWhatsApp(p.telefone);
+            return `<div class="tarefa">
+              <div class="tarefa-txt">
+                <div>${esc(p.nome)}</div>
+                <span class="end-s">${esc(p.documento || '')}${p.documento && p.origem ? ' · ' : ''}${esc(p.origem || '')}</span>
+                ${p.telefone ? `<div>${wa
+                  ? `<a class="zap" href="${esc(wa)}" target="_blank" rel="noopener">📱 ${esc(p.telefone)} — abrir WhatsApp ↗</a>`
+                  : `<span class="end-s">📱 ${esc(p.telefone)} — número incompleto para WhatsApp</span>`}</div>` : ''}
+              </div>
+              <button class="pr-apagar" data-i="${i}" title="Excluir">🗑</button>
+            </div>`;
+          }).join('') : '<p class="ficha-vazio">Nenhum registrado.</p>'}
+        </div>
+        <div class="grade" style="margin-top:10px">
+          <label class="full">Nome<input type="text" id="fi-prop-nome" placeholder="como consta na matrícula"></label>
+          <label>Documento<input type="text" id="fi-prop-doc" placeholder="se constar no RGI"></label>
+          <label>Telefone<input type="text" id="fi-prop-tel" placeholder="(21) 90000-0000"></label>
+          <label class="full">Origem da informação<input type="text" id="fi-prop-origem" placeholder="ex: matrícula 55.123, R.7 de 12/03/2019"></label>
+        </div>
+        <button class="btn btn-p" id="fi-prop-add" style="margin-top:9px">Adicionar proprietário</button>
       </div>
 
       <div class="caixa">
@@ -2196,6 +2247,26 @@ function ligarFicha(r) {
     const t = r.tarefas[+b.dataset.i];
     if (!confirm(`Excluir a tarefa "${t.titulo}"?`)) return;
     r.tarefas.splice(+b.dataset.i, 1);
+    redesenhar();
+  }));
+
+  $('#fi-prop-add').addEventListener('click', () => {
+    const nome = $('#fi-prop-nome').value.trim();
+    if (!nome) { toast('Informe o nome.', true); return; }
+    r.proprietarios = r.proprietarios || [];
+    r.proprietarios.push({
+      nome,
+      documento: $('#fi-prop-doc').value.trim(),
+      telefone: $('#fi-prop-tel').value.trim(),
+      origem: $('#fi-prop-origem').value.trim(),
+    });
+    log(r, `Proprietário anterior registrado: ${nome}`);
+    redesenhar();
+  });
+  $$('#fi-props .pr-apagar').forEach(b => b.addEventListener('click', () => {
+    const p = r.proprietarios[+b.dataset.i];
+    if (!confirm(`Excluir "${p.nome}" da lista de proprietários?`)) return;
+    r.proprietarios.splice(+b.dataset.i, 1);
     redesenhar();
   }));
 
@@ -2817,7 +2888,8 @@ function chaveTrabalho(r) {
 
 /** Um registro só entra no pacote se o usuário mexeu nele. */
 function foiTrabalhado(r) {
-  return !!(r.lida || r.notas || r.arrematador || r.proprietario || r.dataLeilao || r.valorLance ||
+  return !!(r.lida || r.notas || r.arrematador || (r.proprietarios && r.proprietarios.length)
+            || r.dataLeilao || r.valorLance ||
             r.linkRgi || r.contato || r.responsavel || r.matricula || r.processo || r.edital ||
             (r.tarefas && r.tarefas.length) || (r.processos && r.processos.length) ||
             (r.ocupante && (r.ocupante.nome || r.ocupante.notas)) ||
@@ -2826,7 +2898,7 @@ function foiTrabalhado(r) {
             (r.status && r.status !== 'agendado'));
 }
 
-const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador','proprietario',
+const CAMPOS_TRABALHO = ['lida','etapa','notas','ocupacao','ocupante','arrematador','proprietarios',
   'dataLeilao','valorLance','linkRgi','contato','responsavel','matricula','processo','edital',
   'status','tarefas','processos','historico'];
 
@@ -3311,7 +3383,7 @@ function salvarModal() {
     valorAvaliacao: v('valorAvaliacao'), valorLance: v('valorLance'), dataLeilao: v('dataLeilao'),
     valorMinimo: v('valorMinimo'),
     status: v('status'), etapa: v('etapa'), ocupacao: v('ocupacao'),
-    arrematador: v('arrematador'), proprietario: v('proprietario'), fonte: v('fonte'),
+    arrematador: v('arrematador'), fonte: v('fonte'),
     link: v('link'), linkRgi: v('linkRgi'), contato: v('contato'),
     responsavel: v('responsavel'), notas: v('notas'),
   };
@@ -3377,7 +3449,17 @@ function parseCSV(texto) {
 
 function paraCSV(lista) {
   const e = v => { const s = String(v ?? ''); return /[";,\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  return [COLUNAS.join(',')].concat(lista.map(r => COLUNAS.map(c => e(r[c])).join(','))).join('\n');
+  // Proprietários é lista; vira duas colunas legíveis no CSV.
+  const cols = [...COLUNAS, 'proprietarios', 'telefonesProprietarios'];
+  const valor = (r, c) => {
+    if (c === 'proprietarios') return nomesProprietarios(r).join(' | ');
+    if (c === 'telefonesProprietarios')
+      return (r.proprietarios || []).map(p => p.telefone).filter(Boolean).join(' | ');
+    return r[c];
+  };
+  return [cols.join(',')]
+    .concat(lista.map(r => cols.map(c => e(valor(r, c))).join(',')))
+    .join('\n');
 }
 
 function baixar(nome, conteudo, tipo) {
