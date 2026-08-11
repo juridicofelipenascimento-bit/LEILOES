@@ -2758,12 +2758,40 @@ function registrarBackup() {
   if (barra) barra.hidden = true;
 }
 
+/**
+ * Backup COMPLETO. Antes levava só imóveis e arrematadores — e ao restaurar,
+ * os imóveis voltavam apontando para responsáveis que não existiam mais,
+ * porque os perfis dos operadores ficavam de fora. Tudo o que está no
+ * navegador precisa caber aqui, senão isto não é backup.
+ */
+function montarBackup() {
+  return {
+    formato: 2,
+    gravadoEm: new Date().toISOString(),
+    porQuem: perfil.nome || '',
+    imoveis: dados,
+    arrematadores: perfis,
+    usuarios,                 // perfis dos operadores — sem eles, "responsável" fica órfão
+    logs,                     // registro de atividade e base do ranking
+    orfaos,                   // trabalho aguardando o CSV do estado correspondente
+    padraoRgi,
+    padraoLemit,
+    perfilAtivo: perfil.id || '',
+  };
+}
+
 function exportarBackup() {
+  // Em ambiente de teste os dados na tela são fictícios: exportar aqui geraria
+  // um "backup" de dados falsos, que ao ser restaurado destruiria os reais.
+  if (modoTeste) {
+    toast('Você está no ambiente de teste. Saia dele antes de exportar o backup.', true);
+    return;
+  }
+  const pacote = montarBackup();
   baixar(`backup-leiloes-${new Date().toISOString().slice(0, 10)}.json`,
-    JSON.stringify({ imoveis: dados, arrematadores: perfis }, null, 2),
-    'application/json');
+    JSON.stringify(pacote, null, 2), 'application/json');
   registrarBackup();
-  toast('Backup exportado.');
+  toast(`Backup exportado — ${pacote.imoveis.length} imóveis, ${pacote.usuarios.length} perfil(is).`);
 }
 
 /* ==================== sincronização (GitHub) ==================== */
@@ -3757,21 +3785,52 @@ function init() {
     const f = e.target.files[0]; if (!f) return;
     const res = $('#res-backup');
     try {
+      if (modoTeste) throw new Error('Saia do ambiente de teste antes de restaurar.');
       const bruto = JSON.parse(await f.text());
-      // Aceita os dois formatos: o antigo era só a lista de imóveis; o atual
-      // traz também os cadastros de arrematador. Backups velhos continuam válidos.
+
+      // Três formatos aceitos: lista pura (o mais antigo), {imoveis,arrematadores}
+      // (o intermediário) e o completo. Backup velho continua válido — só traz
+      // menos coisa, e o que faltar fica como está.
       const lista = Array.isArray(bruto) ? bruto : bruto.imoveis;
-      const fichas = Array.isArray(bruto) ? null : bruto.arrematadores;
       if (!Array.isArray(lista)) throw new Error('O arquivo não parece ser um backup desta plataforma.');
-      if (!confirm(`Restaurar ${lista.length} imóvel(is)?\n\nIsso substitui todos os dados atuais.`)) return;
+
+      const b = Array.isArray(bruto) ? {} : bruto;
+      const partes = [`${lista.length} imóvel(is)`];
+      if (Array.isArray(b.usuarios)) partes.push(`${b.usuarios.length} perfil(is)`);
+      if (Array.isArray(b.arrematadores)) partes.push(`${b.arrematadores.length} arrematador(es)`);
+      if (Array.isArray(b.logs)) partes.push(`${b.logs.length} registro(s) de atividade`);
+
+      if (!confirm(`Restaurar ${partes.join(', ')}?\n\nIsso substitui todos os dados atuais deste navegador.`)) return;
+
       dados = lista.map(r => normalizar(r));
-      if (Array.isArray(fichas)) perfis = fichas;
+      if (Array.isArray(b.arrematadores)) perfis = b.arrematadores;
+      if (Array.isArray(b.usuarios))      usuarios = b.usuarios;
+      if (Array.isArray(b.logs))          logs = b.logs;
+      if (b.orfaos && typeof b.orfaos === 'object') orfaos = b.orfaos;
+      if (typeof b.padraoRgi === 'string')   padraoRgi = b.padraoRgi;
+      if (typeof b.padraoLemit === 'string') padraoLemit = b.padraoLemit;
+
+      // Reencontra quem estava usando; se aquele perfil não veio, fica deslogado.
+      perfil = usuarios.find(u => u.id === b.perfilAtivo) || { id: '', nome: '', cargo: '', foto: '' };
+
+      try {
+        localStorage.setItem(CHAVE_USUARIOS, JSON.stringify(usuarios));
+        localStorage.setItem(CHAVE_LOGS, JSON.stringify(logs));
+        localStorage.setItem(CHAVE_PERFIL, perfil.id || '');
+        if (padraoRgi)   localStorage.setItem(CHAVE_RGI, padraoRgi);
+        if (padraoLemit) localStorage.setItem(CHAVE_LEMIT, padraoLemit);
+      } catch (e) {}
+
       sincronizarPerfis();
-      salvar(); popularSelects(); render();
+      salvar(); popularSelects(); popularResponsaveis();
+      aplicarPerfilNoTopo(); render();
+
+      const semPerfis = !Array.isArray(b.usuarios);
       res.hidden = false; res.className = 'resultado';
-      res.innerHTML = `<strong>Backup restaurado.</strong> ${dados.length} imóvel(is)`
-        + (Array.isArray(fichas) ? ` e ${perfis.length} cadastro(s) de arrematador` : '')
-        + ' carregado(s).';
+      res.innerHTML = `<strong>Backup restaurado.</strong> ${partes.join(' · ')}.`
+        + (semPerfis ? '<br><br><strong>Atenção:</strong> este backup é de um formato antigo e '
+            + 'não contém os perfis dos operadores. Os imóveis podem apontar para responsáveis '
+            + 'que você precisará cadastrar de novo.' : '');
       toast('Backup restaurado.');
     } catch (err) {
       res.hidden = false; res.className = 'resultado erro';
