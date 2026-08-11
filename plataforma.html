@@ -307,6 +307,15 @@ tr.selecionada td:first-child { box-shadow: inset 3px 0 0 var(--marca); }
 .end-s.prop { color: var(--marca); font-weight: 600; }
 .zap { color: #25d366; font-size: 12px; font-weight: 600; text-decoration: none; }
 .zap:hover { text-decoration: underline; }
+.mapa.zap-atalho { color: #25d366; font-weight: 600; }
+.prop-editar, .prop-apagar {
+  background: none; border: none; cursor: pointer; opacity: .5; font-size: 13px; padding: 3px 4px;
+}
+.prop-editar:hover, .prop-apagar:hover { opacity: 1; }
+.prop-edicao {
+  border: 1px solid var(--marca); border-radius: 9px; padding: 12px;
+  background: color-mix(in srgb, var(--marca) 7%, transparent); margin-bottom: 8px;
+}
 .mapa { font-size: 11.5px; color: var(--primaria); text-decoration: none; }
 .mapa:hover { text-decoration: underline; }
 .tag {
@@ -1119,6 +1128,38 @@ function nomesProprietarios(r) {
   return (r.proprietarios || []).map(p => p.nome).filter(Boolean);
 }
 
+/** O documento do proprietário é sempre CPF: aplica a máscara XXX.XXX.XXX-XX. */
+function formatarCpf(v) {
+  const d = String(v || '').replace(/\D/g, '').slice(0, 11);
+  if (!d) return '';
+  return d
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+}
+
+/** Liga a máscara de CPF a um campo, formatando enquanto se digita. */
+function ligarMascaraCpf(seletor) {
+  const el = $(seletor);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const pos = el.selectionStart, antes = el.value.length;
+    el.value = formatarCpf(el.value);
+    // Mantém o cursor no lugar depois que a máscara insere pontos.
+    const desloc = el.value.length - antes;
+    el.setSelectionRange(pos + desloc, pos + desloc);
+  });
+}
+
+/** Primeiro proprietário com telefone utilizável — usado no atalho do painel. */
+function zapProprietario(r) {
+  for (const p of (r.proprietarios || [])) {
+    const u = linkWhatsApp(p.telefone);
+    if (u) return { url: u, nome: p.nome };
+  }
+  return null;
+}
+
 /**
  * Link de WhatsApp a partir do telefone digitado. Só monta se sobrarem
  * 10 ou 11 dígitos (fixo com DDD ou celular) — número incompleto geraria
@@ -1294,7 +1335,10 @@ function normalizar(r, anterior, preservarVazios) {
     // perder o que já foi digitado.
     proprietarios: (() => {
       const lista = r.proprietarios || base.proprietarios;
-      if (Array.isArray(lista)) return lista;
+      if (Array.isArray(lista)) {
+        // Normaliza o CPF na entrada: importado sem pontuação, sai formatado.
+        return lista.map(p => ({ ...p, documento: formatarCpf(p.documento) }));
+      }
       const antigo = txt(r.proprietario, base.proprietario);
       return antigo ? [{ nome: antigo, documento: '', telefone: '', origem: '' }] : [];
     })(),
@@ -1654,6 +1698,11 @@ function renderTabela() {
           // link "RGI" que leva à página do leilão seria enganoso.
           const u = urlRgi(r);
           return u ? ` · <a class="mapa rgi" href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">RGI ↗</a>` : '';
+        })()}
+        ${(() => {
+          const z = zapProprietario(r);
+          return z ? ` · <a class="mapa zap-atalho" href="${esc(z.url)}" target="_blank" rel="noopener"
+            onclick="event.stopPropagation()" title="WhatsApp de ${esc(z.nome)}">WhatsApp ↗</a>` : '';
         })()}
       </td>
       <td>${r.dataLeilao
@@ -2022,11 +2071,13 @@ function atualizarTarjaTeste() {
 
 /* ==================== ficha do imóvel ==================== */
 let imovelAberto = null;
+let propEditando = null;   // índice do proprietário em edição na ficha
 
 function abrirImovel(id) {
   const r = dados.find(x => x.id === id);
   if (!r) return;
   imovelAberto = id;
+  propEditando = null;      // não carregar edição pendente de outro imóvel
   if (!r.lida) { r.lida = true; log(r, 'Marcado como lido'); salvar(); }
 
   $$('.aba').forEach(x => x.classList.remove('ativa'));
@@ -2132,26 +2183,46 @@ function renderFicha() {
         </p>
         <div id="fi-props">
           ${(r.proprietarios || []).length ? (r.proprietarios || []).map((p, i) => {
+            if (propEditando === i) {
+              // Linha em edição: os mesmos campos, já preenchidos.
+              return `<div class="prop-edicao">
+                <div class="grade">
+                  <label class="full">Nome<input type="text" id="pe-nome" value="${esc(p.nome)}"></label>
+                  <label>CPF<input type="text" id="pe-doc" value="${esc(p.documento || '')}" placeholder="000.000.000-00" maxlength="14"></label>
+                  <label>Telefone<input type="text" id="pe-tel" value="${esc(p.telefone || '')}" placeholder="(21) 90000-0000"></label>
+                  <label class="full">Origem da informação<input type="text" id="pe-origem" value="${esc(p.origem || '')}"></label>
+                </div>
+                <div class="acoes-barra" style="margin-top:9px">
+                  <button class="btn btn-p" id="pe-salvar" data-i="${i}">Salvar</button>
+                  <button class="btn" id="pe-cancelar">Cancelar</button>
+                </div>
+              </div>`;
+            }
             const wa = linkWhatsApp(p.telefone);
             return `<div class="tarefa">
               <div class="tarefa-txt">
                 <div>${esc(p.nome)}</div>
-                <span class="end-s">${esc(p.documento || '')}${p.documento && p.origem ? ' · ' : ''}${esc(p.origem || '')}</span>
+                ${p.documento ? `<span class="end-s">CPF ${esc(p.documento)}</span>` : ''}
+                ${p.origem ? `<span class="end-s">${esc(p.origem)}</span>` : ''}
                 ${p.telefone ? `<div>${wa
                   ? `<a class="zap" href="${esc(wa)}" target="_blank" rel="noopener">📱 ${esc(p.telefone)} — abrir WhatsApp ↗</a>`
                   : `<span class="end-s">📱 ${esc(p.telefone)} — número incompleto para WhatsApp</span>`}</div>` : ''}
               </div>
-              <button class="pr-apagar" data-i="${i}" title="Excluir">🗑</button>
+              <button class="prop-editar" data-i="${i}" title="Editar">✏️</button>
+              <button class="prop-apagar" data-i="${i}" title="Excluir">🗑</button>
             </div>`;
           }).join('') : '<p class="ficha-vazio">Nenhum registrado.</p>'}
         </div>
-        <div class="grade" style="margin-top:10px">
-          <label class="full">Nome<input type="text" id="fi-prop-nome" placeholder="como consta na matrícula"></label>
-          <label>Documento<input type="text" id="fi-prop-doc" placeholder="se constar no RGI"></label>
-          <label>Telefone<input type="text" id="fi-prop-tel" placeholder="(21) 90000-0000"></label>
-          <label class="full">Origem da informação<input type="text" id="fi-prop-origem" placeholder="ex: matrícula 55.123, R.7 de 12/03/2019"></label>
-        </div>
-        <button class="btn btn-p" id="fi-prop-add" style="margin-top:9px">Adicionar proprietário</button>
+        <details class="novo-perfil" style="margin-top:10px" ${(r.proprietarios || []).length ? '' : 'open'}>
+          <summary>+ Adicionar proprietário</summary>
+          <div class="grade" style="margin-top:10px">
+            <label class="full">Nome<input type="text" id="fi-prop-nome" placeholder="como consta na matrícula"></label>
+            <label>CPF<input type="text" id="fi-prop-doc" placeholder="000.000.000-00" maxlength="14"></label>
+            <label>Telefone<input type="text" id="fi-prop-tel" placeholder="(21) 90000-0000"></label>
+            <label class="full">Origem da informação<input type="text" id="fi-prop-origem" placeholder="ex: matrícula 55.123, R.7 de 12/03/2019"></label>
+          </div>
+          <button class="btn btn-p" id="fi-prop-add" style="margin-top:9px">Adicionar</button>
+        </details>
       </div>
 
       <div class="caixa">
@@ -2250,23 +2321,49 @@ function ligarFicha(r) {
     redesenhar();
   }));
 
-  $('#fi-prop-add').addEventListener('click', () => {
+  ligarMascaraCpf('#fi-prop-doc');
+  ligarMascaraCpf('#pe-doc');
+
+  $('#fi-prop-add')?.addEventListener('click', () => {
     const nome = $('#fi-prop-nome').value.trim();
     if (!nome) { toast('Informe o nome.', true); return; }
     r.proprietarios = r.proprietarios || [];
     r.proprietarios.push({
       nome,
-      documento: $('#fi-prop-doc').value.trim(),
+      documento: formatarCpf($('#fi-prop-doc').value),
       telefone: $('#fi-prop-tel').value.trim(),
       origem: $('#fi-prop-origem').value.trim(),
     });
     log(r, `Proprietário anterior registrado: ${nome}`);
     redesenhar();
   });
-  $$('#fi-props .pr-apagar').forEach(b => b.addEventListener('click', () => {
+
+  $$('#fi-props .prop-editar').forEach(b => b.addEventListener('click', () => {
+    propEditando = +b.dataset.i;
+    renderFicha();
+  }));
+  $('#pe-cancelar')?.addEventListener('click', () => { propEditando = null; renderFicha(); });
+  $('#pe-salvar')?.addEventListener('click', (e) => {
+    const i = +e.currentTarget.dataset.i;
+    const nome = $('#pe-nome').value.trim();
+    if (!nome) { toast('O nome não pode ficar vazio.', true); return; }
+    r.proprietarios[i] = {
+      nome,
+      documento: formatarCpf($('#pe-doc').value),
+      telefone: $('#pe-tel').value.trim(),
+      origem: $('#pe-origem').value.trim(),
+    };
+    log(r, `Proprietário anterior editado: ${nome}`);
+    propEditando = null;
+    redesenhar();
+  });
+
+  $$('#fi-props .prop-apagar').forEach(b => b.addEventListener('click', () => {
     const p = r.proprietarios[+b.dataset.i];
     if (!confirm(`Excluir "${p.nome}" da lista de proprietários?`)) return;
     r.proprietarios.splice(+b.dataset.i, 1);
+    log(r, `Proprietário anterior removido: ${p.nome}`);
+    propEditando = null;
     redesenhar();
   }));
 
@@ -3450,9 +3547,11 @@ function parseCSV(texto) {
 function paraCSV(lista) {
   const e = v => { const s = String(v ?? ''); return /[";,\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   // Proprietários é lista; vira duas colunas legíveis no CSV.
-  const cols = [...COLUNAS, 'proprietarios', 'telefonesProprietarios'];
+  const cols = [...COLUNAS, 'proprietarios', 'cpfProprietarios', 'telefonesProprietarios'];
   const valor = (r, c) => {
     if (c === 'proprietarios') return nomesProprietarios(r).join(' | ');
+    if (c === 'cpfProprietarios')
+      return (r.proprietarios || []).map(p => p.documento).filter(Boolean).join(' | ');
     if (c === 'telefonesProprietarios')
       return (r.proprietarios || []).map(p => p.telefone).filter(Boolean).join(' | ');
     return r[c];
