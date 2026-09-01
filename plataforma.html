@@ -739,6 +739,7 @@ code { background: var(--superficie-2); padding: 1.5px 5px; border-radius: 4px; 
       <button class="btn" id="btn-piscar" title="Liga e desliga o piscar do alerta vermelho">Piscar: ligado</button>
       <button class="btn" id="btn-marcar-lidas">Marcar visíveis como lidas</button>
       <button class="btn" id="btn-csv">Exportar CSV</button>
+      <button class="btn btn-p" id="btn-bitrix">Exportar para o Bitrix24</button>
       <button class="btn" id="btn-pdf">Exportar PDF / Imprimir</button>
     </div>
   </div>
@@ -3661,6 +3662,141 @@ function parseCSV(texto) {
   });
 }
 
+/* ==================== exportação para o Bitrix24 ==================== */
+/**
+ * Pontua o imóvel como oportunidade comercial, no mesmo desenho já usado na
+ * prospecção empresarial: soma de critérios, faixa A/B/C e uma frase dizendo
+ * POR QUE aquilo é um lead — o SDR não deveria ter que deduzir.
+ *
+ * O olhar é a demanda JURÍDICA que o imóvel gera, não o imóvel como
+ * investimento: ocupado exige imissão na posse, leilão SFI abre a discussão do
+ * saldo remanescente, disputa possessória já é litígio em curso.
+ */
+function pontuarImovel(r) {
+  let score = 0;
+  const motivos = [];
+  const alertas = [];
+
+  if (r.ocupacao === 'ocupado') {
+    score += 3;
+    motivos.push('imóvel ocupado — arrematante precisará de imissão na posse');
+  }
+  if (r.ocupacao === 'litigio') {
+    score += 3;
+    motivos.push('disputa possessória em curso');
+  }
+
+  // Quem arremata com recorrência tem demanda jurídica repetida.
+  if (r.arrematador) {
+    const mesmos = dados.filter(x => x.arrematador === r.arrematador).length;
+    if (mesmos >= 2) {
+      score += 3;
+      motivos.push(`arrematante recorrente (${mesmos} imóveis na base)`);
+    } else {
+      score += 1;
+    }
+    const perfilArr = acharPerfil(r.arrematador);
+    if (perfilArr && perfilArr.tipo === 'pj') {
+      score += 1;
+      motivos.push('arrematante pessoa jurídica');
+    }
+  }
+
+  // Consolidação por alienação fiduciária: abre a discussão do art. 27, §4º da
+  // Lei 9.514/97 — saldo remanescente devido ao antigo devedor.
+  if (/SFI|alienaç|fiduci/i.test(r.fonte || '')) {
+    score += 2;
+    motivos.push('leilão SFI — cabe discutir saldo remanescente (Lei 9.514/97, art. 27, §4º)');
+  }
+
+  const ref = r.valorLance ?? r.valorMinimo;
+  if (r.valorAvaliacao && ref) {
+    const d = (1 - ref / r.valorAvaliacao) * 100;
+    if (d >= 50) { score += 2; motivos.push(`deságio de ${d.toFixed(0)}%`); }
+    else if (d >= 30) { score += 1; }
+  }
+
+  const p = prazoLeilao(r);
+  if (p && p.nivel === 7) { score += 2; motivos.push(`leilão em ${p.d} dia(s)`); }
+  else if (p && p.nivel === 15) { score += 1; motivos.push(`leilão em ${p.d} dias`); }
+
+  if (r.processo) { score += 1; motivos.push('processo identificado'); }
+
+  if (r.ocupacao === 'desocupado') score -= 1;
+  if (/venda direta/i.test(r.fonte || '')) score -= 1;
+  if (r.etapa === 'encerrado') score -= 3;
+
+  // O que o SDR precisa confirmar antes de agir.
+  if (!r.dataLeilao) alertas.push('sem data de leilão — conferir no edital');
+  if (r.ocupacao === 'nao_informado') alertas.push('ocupação não informada — conferir no edital');
+  if (!nomesProprietarios(r).length) alertas.push('proprietário anterior não levantado — consultar o RGI');
+  if (!r.processo) alertas.push('sem processo vinculado');
+
+  return {
+    score,
+    prioridade: score >= 7 ? 'A — quente' : score >= 4 ? 'B — média' : 'C — fria',
+    gancho: motivos.join('; ') || 'sem gancho identificado — qualificar',
+    alerta: alertas.join('; ') || '—',
+  };
+}
+
+/**
+ * CSV no formato que o Bitrix24 importa: cabeçalhos legíveis, valores por
+ * extenso (nada de código interno), datas ISO e URLs completas.
+ *
+ * Separador ponto-e-vírgula: endereço tem vírgula, e com separador vírgula o
+ * Excel em português abre a planilha inteira numa coluna só.
+ */
+function paraCsvBitrix(lista) {
+  const colunas = [
+    'Prioridade', 'Score', 'Etapa do funil', 'Status do leilão',
+    'Endereço', 'Bairro', 'Cidade', 'UF',
+    'Ocupação', 'Proprietário anterior', 'Telefone do proprietário',
+    'Arrematante', 'Responsável',
+    'Valor de avaliação', 'Preço mínimo', 'Valor arrematado', 'Deságio',
+    'Data do leilão', 'Modalidade / origem', 'Nº do imóvel',
+    'Matrícula', 'Nº do processo', 'Edital', 'Contato do leiloeiro',
+    'Link do Google Maps', 'Link do leilão (Caixa)', 'Link do RGI',
+    'Gancho comercial', 'Alerta / conferência', 'Anotações',
+  ];
+
+  const brl = v => (v === null || v === undefined || v === '')
+    ? '' : Number(v).toFixed(2).replace('.', ',');
+
+  const linha = (r) => {
+    const q = pontuarImovel(r);
+    const ref = r.valorLance ?? r.valorMinimo;
+    const desagio = (r.valorAvaliacao && ref)
+      ? ((1 - ref / r.valorAvaliacao) * 100).toFixed(1).replace('.', ',') + '%' : '';
+    const props = r.proprietarios || [];
+    const mapa = 'https://www.google.com/maps/search/' +
+      encodeURIComponent([r.endereco, r.bairro, r.municipio, r.estado].filter(Boolean).join(', '));
+
+    return [
+      q.prioridade, q.score, ETAPAS[r.etapa] || '', STATUS[r.status] || '',
+      r.endereco || '', r.bairro || '', r.municipio || '', r.estado || '',
+      OCUPACAO[r.ocupacao] || '',
+      props.map(p => p.nome).filter(Boolean).join(' e '),
+      props.map(p => p.telefone).filter(Boolean).join(' / '),
+      r.arrematador || '', r.responsavel || '',
+      brl(r.valorAvaliacao), brl(r.valorMinimo), brl(r.valorLance), desagio,
+      r.dataLeilao || '', r.fonte || '', r.codigoFonte || '',
+      r.matricula || '', r.processo || '', r.edital || '', r.contato || '',
+      mapa, r.link || '', urlRgi(r) || '',
+      q.gancho, q.alerta, (r.notas || '').replace(/[\r\n]+/g, ' '),
+    ];
+  };
+
+  const esc2 = v => {
+    const s = String(v ?? '');
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+
+  return [colunas.join(';')]
+    .concat(lista.map(r => linha(r).map(esc2).join(';')))
+    .join('\r\n');
+}
+
 function paraCSV(lista) {
   const e = v => { const s = String(v ?? ''); return /[";,\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   // Proprietários é lista; vira duas colunas legíveis no CSV.
@@ -3857,6 +3993,15 @@ function init() {
     salvar(); render();
     toast(n ? `${n} registro(s) marcado(s) como lido(s).` : 'Nenhum não lido na seleção atual.');
   });
+  $('#btn-bitrix').addEventListener('click', () => {
+    if (!visiveis.length) return toast('Nada para exportar. Ajuste os filtros.', true);
+    const quentes = visiveis.filter(r => pontuarImovel(r).score >= 7).length;
+    baixar(`bitrix-leiloes-${new Date().toISOString().slice(0,10)}.csv`,
+      '﻿' + paraCsvBitrix(visiveis), 'text/csv;charset=utf-8');
+    registrar('Exportou para o Bitrix', `${visiveis.length} imóveis`);
+    toast(`${visiveis.length} imóveis exportados — ${quentes} classificados como A (quente).`);
+  });
+
   $('#btn-csv').addEventListener('click', () => {
     if (!visiveis.length) return toast('Nada para exportar.', true);
     baixar(`leiloes-${new Date().toISOString().slice(0,10)}.csv`, '﻿' + paraCSV(visiveis), 'text/csv;charset=utf-8');
